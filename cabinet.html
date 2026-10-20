@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Личный кабинет — SodaDlc</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <main class="container dash">
+    <aside class="sidebar">
+      <div class="side-user">
+        <span class="avatar" id="sideAvatar">?</span>
+        <div>
+          <strong id="sideName">Загрузка…</strong>
+          <small id="sideRole">—</small>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <a href="/cabinet" class="active" id="navOverview">Обзор</a>
+        <button type="button" data-scroll="#keys">Активация ключа</button>
+        <button type="button" data-scroll="#security">Безопасность</button>
+        <a href="/news">Новости</a>
+        <a href="/admin" id="navAdmin" class="hidden">Админ-панель</a>
+        <div class="side-sep"></div>
+        <button type="button" data-logout>Выйти</button>
+      </nav>
+    </aside>
+
+    <div class="dash-main">
+      <div class="page-head">
+        <div>
+          <h1>Личный кабинет</h1>
+          <p id="welcomeText">Управляй аккаунтом, подпиской и ключами.</p>
+        </div>
+        <span class="plan-pill" id="headPlan">—</span>
+      </div>
+
+      <div class="mini-stats">
+        <div class="mini-stat"><b id="statPlan">—</b><span>Тариф</span></div>
+        <div class="mini-stat"><b id="statDays">—</b><span>Дней осталось</span></div>
+        <div class="mini-stat"><b id="statSince">—</b><span>С нами с</span></div>
+        <div class="mini-stat"><b id="statStatus">—</b><span>Статус</span></div>
+      </div>
+
+      <div class="grid-2">
+        <section class="panel" id="overview">
+          <div class="panel-head"><h2>Аккаунт</h2><span class="role-pill user" id="rolePill">user</span></div>
+          <div class="panel-body">
+            <div class="profile-row"><span>Никнейм</span><b id="profileName">—</b></div>
+            <div class="profile-row"><span>Email</span><b id="profileEmail">—</b></div>
+            <div class="profile-row"><span>ID</span><b id="profileId">—</b></div>
+            <div class="profile-row"><span>Регистрация</span><b id="profileCreated">—</b></div>
+            <div class="profile-row"><span>Последний вход</span><b id="profileLogin">—</b></div>
+          </div>
+        </section>
+
+        <section class="panel" id="subscription">
+          <div class="panel-head"><h2>Подписка</h2><span class="plan-pill" id="subPlan">—</span></div>
+          <div class="panel-body">
+            <div class="profile-row"><span>Тариф</span><b id="subName">—</b></div>
+            <div class="profile-row"><span>Действует до</span><b id="subUntil">—</b></div>
+            <div class="profile-row"><span>Осталось</span><b id="subLeft">—</b></div>
+            <div style="margin-top:16px">
+              <div class="progress"><span id="subProgress" style="width:0%"></span></div>
+            </div>
+            <div class="note" style="margin-top:16px" id="subNote">Активируй ключ, чтобы продлить подписку.</div>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel" id="keys">
+        <div class="panel-head"><h2>Активация ключа</h2><span class="small muted">Формат: SODA-XXXX-XXXX-XXXX</span></div>
+        <div class="panel-body">
+          <form class="key-form" id="keyForm">
+            <input class="input mono" id="keyInput" placeholder="SODA-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="40" />
+            <button class="btn" type="submit" id="keyBtn">Активировать</button>
+          </form>
+          <div class="note" style="margin-top:14px">Один ключ можно использовать один раз. После активации тариф обновится сразу.</div>
+        </div>
+      </section>
+
+      <section class="panel" id="security">
+        <div class="panel-head"><h2>Безопасность</h2></div>
+        <div class="panel-body">
+          <form id="passwordForm" style="display:grid;gap:14px;max-width:430px">
+            <div class="field">
+              <label for="currentPassword">Текущий пароль</label>
+              <input class="input" id="currentPassword" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="field">
+              <label for="newPassword">Новый пароль</label>
+              <input class="input" id="newPassword" type="password" autocomplete="new-password" minlength="6" required />
+            </div>
+            <button class="btn soft" type="submit">Сменить пароль</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel" id="latestNews">
+        <div class="panel-head"><h2>Последние новости</h2><a class="btn ghost sm" href="/news">Все</a></div>
+        <div class="panel-body" id="cabinetNews"><div class="loader"></div></div>
+      </section>
+    </div>
+  </main>
+
+  <div id="site-footer"></div>
+  <script src="/app.js"></script>
+  <script>
+    (async () => {
+      let user;
+      try {
+        user = await SODA.me(true);
+      } catch {}
+      if (!user) {
+        location.replace("/login?next=/cabinet");
+        return;
+      }
+
+      SODA.bindLogout();
+
+      const planLabels = { free: "Free", pro: "Pro", premium: "Premium" };
+
+      function paint(u) {
+        user = u;
+        document.getElementById("sideAvatar").textContent = SODA.initials(u.username);
+        document.getElementById("sideName").textContent = u.username;
+        document.getElementById("sideRole").textContent = u.role === "admin" ? "Администратор" : "Пользователь";
+        document.getElementById("welcomeText").textContent = `Привет, ${u.username}. Управляй аккаунтом, подпиской и ключами.`;
+
+        document.getElementById("profileName").textContent = u.username;
+        document.getElementById("profileEmail").textContent = u.email || "не указан";
+        document.getElementById("profileId").textContent = "#" + u.id;
+        document.getElementById("profileCreated").textContent = SODA.fmtDate(u.createdAt);
+        document.getElementById("profileLogin").textContent = u.lastLoginAt ? SODA.fmtDateTime(u.lastLoginAt) : "—";
+
+        const rolePill = document.getElementById("rolePill");
+        rolePill.className = "role-pill " + (u.role === "admin" ? "admin" : "user");
+        rolePill.textContent = u.role === "admin" ? "admin" : "user";
+        document.getElementById("navAdmin").classList.toggle("hidden", u.role !== "admin");
+
+        const plan = u.plan || "free";
+        const left = SODA.daysLeft(u.planExpiresAt);
+        document.getElementById("headPlan").className = "plan-pill " + plan;
+        document.getElementById("headPlan").textContent = planLabels[plan] || plan;
+        document.getElementById("subPlan").className = "plan-pill " + plan;
+        document.getElementById("subPlan").textContent = planLabels[plan] || plan;
+        document.getElementById("statPlan").textContent = planLabels[plan] || plan;
+        document.getElementById("statDays").textContent = plan === "free" ? "∞" : left ?? "—";
+        document.getElementById("statSince").textContent = SODA.fmtDate(u.createdAt);
+        document.getElementById("statStatus").textContent = u.banned ? "Блок" : "Активен";
+        document.getElementById("subName").textContent = planLabels[plan] || plan;
+        document.getElementById("subUntil").textContent = u.planExpiresAt ? SODA.fmtDate(u.planExpiresAt) : "бессрочно";
+        document.getElementById("subLeft").textContent = plan === "free" ? "без ограничений" : `${left} дн.`;
+        document.getElementById("subProgress").style.width = plan === "free" ? "100%" : Math.min(100, Math.max(0, (left / 30) * 100)) + "%";
+        document.getElementById("subNote").textContent = plan === "free"
+          ? "Базовый тариф. Активируй ключ Pro или Premium, чтобы получить больше возможностей."
+          : `Подписка ${planLabels[plan]} активна. Активация нового ключа продлит текущий срок.`;
+      }
+
+      paint(user);
+
+      document.querySelectorAll("[data-scroll]").forEach((btn) => {
+        btn.addEventListener("click", () => document.querySelector(btn.dataset.scroll)?.scrollIntoView({ behavior: "smooth" }));
+      });
+
+      document.getElementById("keyForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const input = document.getElementById("keyInput");
+        const btn = document.getElementById("keyBtn");
+        const key = input.value.trim();
+        if (!key) return;
+        btn.disabled = true;
+        btn.textContent = "Активируем…";
+        try {
+          const data = await SODA.api("/api/keys/activate", { method: "POST", body: { key } });
+          SODA.toast("Ключ активирован. Подписка обновлена!", "ok");
+          input.value = "";
+          const fresh = await SODA.me(true);
+          if (fresh) paint(fresh);
+        } catch (err) {
+          SODA.toast(err.message, "err");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Активировать";
+        }
+      });
+
+      document.getElementById("passwordForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          await SODA.api("/api/me/password", {
+            method: "POST",
+            body: {
+              currentPassword: document.getElementById("currentPassword").value,
+              newPassword: document.getElementById("newPassword").value,
+            },
+          });
+          e.target.reset();
+          SODA.toast("Пароль изменён", "ok");
+        } catch (err) {
+          SODA.toast(err.message, "err");
+        }
+      });
+
+      try {
+        const { news } = await SODA.api("/api/news");
+        document.getElementById("cabinetNews").innerHTML = news.length
+          ? news.slice(0, 3).map((n) => `
+              <div class="profile-row" style="align-items:flex-start">
+                <div>
+                  <b style="display:block">${n.pinned ? '<span class="pin">PIN</span> ' : ""}${SODA.escapeHtml(n.title)}</b>
+                  <span class="small">${SODA.escapeHtml(n.body).slice(0, 160)}</span>
+                </div>
+                <span class="small" style="white-space:nowrap">${SODA.fmtDate(n.created_at)}</span>
+              </div>`).join("")
+          : '<div class="empty">Новостей пока нет.</div>';
+      } catch {}
+    })();
+  </script>
+</body>
+</html>
