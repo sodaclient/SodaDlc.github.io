@@ -193,14 +193,22 @@ function seed() {
   }
 
   const lvCount = db.prepare("SELECT COUNT(*) AS c FROM launcher_versions").get().c;
+  const insVersion = db.prepare(
+    "INSERT INTO launcher_versions (brand, version, changelog, download_url_win, download_url_linux, download_url_mac, force_update, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  );
+  const ensureVersion = (brand, version, changelog) => {
+    const exists = db.prepare("SELECT id FROM launcher_versions WHERE brand = ?").get(brand);
+    if (!exists) insVersion.run(brand, version, changelog, "", "", "", 0, now());
+  };
   if (lvCount === 0) {
-    const ins = db.prepare(
-      "INSERT INTO launcher_versions (brand, version, changelog, download_url_win, download_url_linux, download_url_mac, force_update, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-    ins.run("SodaDlc", "1.0.0", "Первый релиз SodaDlc\n- Полная интеграция с сайтом\n- Система ключей и подписок\n- Админ-панель", "", "", "", 0, now());
-    ins.run("SodaVisuals", "2.1.0", "Обновление визуалов\n- Новые шейдеры\n- Исправлены баги", "", "", "", 0, now());
-    ins.run("SodaLegit", "1.5.3", "Legit режим\n- Улучшена безопасность\n- Новые настройки", "", "", "", 0, now());
+    ensureVersion("SodaDlc Legit", "1.0.0", "Первый релиз SodaDlc Legit\n- Чистый визуал без риска\n- Полная интеграция с сайтом\n- Система ключей и подписок");
+    ensureVersion("SodaDlc Rage", "1.0.0", "Первый релиз SodaDlc Rage\n- Агрессивный визуал\n- Максимальная выразительность\n- Полная интеграция с сайтом");
+    ensureVersion("SodaVisuals", "2.1.0", "Обновление визуалов\n- Новые шейдеры\n- Исправлены баги");
     console.log("[seed] launcher versions created");
+  } else {
+    ensureVersion("SodaDlc Legit", "1.0.0", "Чистый визуал без риска\n- Полная интеграция с сайтом\n- Система ключей и подписок");
+    ensureVersion("SodaDlc Rage", "1.0.0", "Агрессивный визуал\n- Максимальная выразительность\n- Полная интеграция с сайтом");
+    ensureVersion("SodaVisuals", "2.1.0", "Классические визуалы\n- Новые шейдеры\n- Стабильная работа");
   }
 }
 seed();
@@ -237,6 +245,7 @@ const PAGES = {
   "/terms": "terms.html",
   "/privacy": "privacy.html",
   "/zapret": "zapret.html",
+  "/launcher": "launcher.html",
 };
 
 function send(res, status, body, headers = {}) {
@@ -318,8 +327,17 @@ function clearSessionCookie(req, res) {
   res.setHeader("Set-Cookie", "soda_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
 }
 
+function authToken(req) {
+  let token = parseCookies(req).soda_session;
+  if (!token) {
+    const header = req.headers.authorization || "";
+    if (header.toLowerCase().startsWith("bearer ")) token = header.slice(7).trim();
+  }
+  return token || "";
+}
+
 function getSessionUser(req) {
-  const token = parseCookies(req).soda_session;
+  const token = authToken(req);
   if (!token) return null;
   const row = db
     .prepare(
@@ -417,6 +435,16 @@ function applyPlan(userId, plan, days) {
 async function handleApi(req, res, url) {
   const route = url.pathname;
   const method = req.method;
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  if (method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 
   if (route === "/api/register" && method === "POST") {
     if (!rateLimit(req, res, "register", 10)) return;
@@ -756,13 +784,7 @@ async function handleApi(req, res, url) {
 
   if (route === "/api/launcher/log" && method === "POST") {
     const body = await readBody(req);
-    const token = parseCookies(req).soda_session;
-    let user = null;
-    if (token) {
-      user = db
-        .prepare("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?")
-        .get(hashToken(token));
-    }
+    const user = getSessionUser(req);
     const brand = String(body.brand || "SodaDlc");
     const version = String(body.version || "unknown");
     const os = String(body.os || "unknown");
@@ -827,12 +849,8 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/launcher/activate" && method === "POST") {
-    const token = parseCookies(req).soda_session;
-    if (!token) return json(res, 401, { error: "Требуется авторизация" });
-    const user = db
-      .prepare("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?")
-      .get(hashToken(token));
-    if (!user || user.banned) return json(res, 401, { error: "Сессия недействительна" });
+    const user = getSessionUser(req);
+    if (!user || user.banned) return json(res, 401, { error: "Требуется авторизация" });
     const body = await readBody(req);
     const key = String(body.key || "").trim().toUpperCase();
     const brand = String(body.brand || "SodaDlc");
@@ -856,11 +874,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/launcher/status" && method === "GET") {
-    const token = parseCookies(req).soda_session;
-    if (!token) return json(res, 401, { error: "Требуется авторизация" });
-    const user = db
-      .prepare("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?")
-      .get(hashToken(token));
+    const user = getSessionUser(req);
     if (!user) return json(res, 401, { error: "Сессия недействительна" });
     const daysLeft = user.plan_expires_at ? Math.max(0, Math.ceil((user.plan_expires_at - now()) / 864e5)) : null;
     return json(res, 200, {

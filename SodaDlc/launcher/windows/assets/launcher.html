@@ -1,659 +1,731 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Soda Launcher</title>
-  <style>
-    :root {
-      --bg: #0a0c0a;
-      --panel: #12160f;
-      --panel-2: #171c14;
-      --line: #242b21;
-      --line-soft: #1b2018;
-      --text: #f2f6ec;
-      --muted: #9aa392;
-      --muted-2: #6d7666;
-      --accent: #b7ff3c;
-      --accent-strong: #9be619;
-      --accent-soft: rgba(183, 255, 60, 0.12);
-      --danger: #ff5f5f;
-      --danger-soft: rgba(255, 95, 95, 0.12);
-      --warn: #ffc857;
-      --info: #58d5ff;
-      --radius: 16px;
-      --radius-sm: 10px;
-      --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
-      --font-display: "Unbounded", "Chakra Petch", sans-serif;
-      --font-body: "Chakra Petch", "Inter", sans-serif;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      font-size: 15px;
-      line-height: 1.55;
-      -webkit-font-smoothing: antialiased;
-      display: flex;
-      flex-direction: column;
-    }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      background:
-        radial-gradient(600px 300px at 80% -10%, rgba(183, 255, 60, 0.1), transparent 65%),
-        radial-gradient(400px 250px at 5% 40%, rgba(88, 213, 255, 0.05), transparent 60%);
-      pointer-events: none;
-    }
-    a { color: inherit; text-decoration: none; }
-    button, input, select, textarea { font: inherit; color: inherit; }
-    ::selection { background: var(--accent); color: #0a0c0a; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SodaDlc Launcher</title>
+<style>
+  :root {
+    --bg: #070907;
+    --bg-2: #0c100b;
+    --panel: rgba(18, 23, 16, 0.72);
+    --panel-2: rgba(24, 31, 21, 0.6);
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #f2f6ec;
+    --muted: #93a08b;
+    --muted-2: #6d7a66;
+    --accent: #b7ff3c;
+    --accent-strong: #d4ff7a;
+    --accent-soft: rgba(183, 255, 60, 0.12);
+    --danger: #ff5d4d;
+    --radius: 18px;
+    --font: "Segoe UI", "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  }
 
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      max-width: 480px;
-      width: 100%;
-      margin: 0 auto;
-      background: linear-gradient(180deg, rgba(18,22,15,0.95), rgba(10,12,10,0.98));
-      border-left: 1px solid var(--line-soft);
-      border-right: 1px solid var(--line-soft);
-      position: relative;
-      overflow: hidden;
-    }
-    .app::before {
-      content: "";
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--accent), transparent);
-      opacity: 0.4;
-    }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    .screen { display: none; flex-direction: column; height: 100%; padding: 24px 20px 20px; }
-    .screen.active { display: flex; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
 
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-family: var(--font-display);
-      font-weight: 700;
-      font-size: 20px;
-      letter-spacing: -0.02em;
-    }
-    .brand img { width: 36px; height: 36px; border-radius: 10px; }
-    .brand em { font-style: normal; color: var(--accent); }
-    .brand-tag { font-size: 11px; color: var(--muted-2); letter-spacing: 0.1em; text-transform: uppercase; margin-top: -4px; }
+  body {
+    position: relative;
+    background:
+      radial-gradient(900px 520px at 8% -10%, rgba(183, 255, 60, 0.14), transparent 62%),
+      radial-gradient(760px 520px at 108% 12%, rgba(88, 213, 255, 0.08), transparent 60%),
+      radial-gradient(700px 700px at 50% 120%, rgba(183, 255, 60, 0.07), transparent 60%),
+      var(--bg);
+  }
 
-    .version-badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      background: var(--panel);
-    }
-    .version-badge.new { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 78%);
+  }
 
-    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(183,255,60,0.35); }
 
-    /* --- Buttons --- */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      height: 44px;
-      padding: 0 22px;
-      border: 1px solid transparent;
-      border-radius: 11px;
-      background: var(--accent);
-      color: #0c1008;
-      font-weight: 700;
-      font-size: 15px;
-      cursor: pointer;
-      transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease;
-      white-space: nowrap;
-    }
-    .btn:hover { background: var(--accent-strong); }
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .btn.ghost { background: transparent; border-color: var(--line); color: var(--text); }
-    .btn.ghost:hover { border-color: #3a4535; background: var(--panel); }
-    .btn.soft { background: var(--accent-soft); color: var(--accent); border-color: rgba(183,255,60,0.25); }
-    .btn.soft:hover { background: rgba(183,255,60,0.2); }
-    .btn.danger { background: var(--danger-soft); color: var(--danger); border-color: rgba(255,95,95,0.3); }
-    .btn.danger:hover { background: rgba(255,95,95,0.2); }
-    .btn.block { width: 100%; }
-    .btn.sm { height: 36px; padding: 0 14px; font-size: 13px; border-radius: 9px; }
+  .app { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
 
-    /* --- Forms --- */
-    .form { display: grid; gap: 14px; }
-    .field { display: grid; gap: 6px; }
-    .field label { font-size: 13px; color: var(--muted); }
-    .input {
-      height: 44px;
-      padding: 0 13px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #0b0e0a;
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .input:focus { border-color: rgba(183,255,60,0.55); box-shadow: 0 0 0 3px rgba(183,255,60,0.1); }
-    .input::placeholder { color: var(--muted-2); }
-    textarea.input { height: auto; min-height: 100px; padding: 12px 13px; resize: vertical; }
+  .screen {
+    position: absolute;
+    inset: 0;
+    padding: 26px 24px;
+    display: flex;
+    flex-direction: column;
+    opacity: 1;
+    transition: opacity 0.28s ease, transform 0.28s ease;
+  }
+  .screen.hidden { opacity: 0; transform: translateY(8px); pointer-events: none; }
 
-    .form-error { padding: 10px 13px; border-radius: 9px; background: var(--danger-soft); border: 1px solid rgba(255,95,95,0.3); color: #ffb4b4; font-size: 13px; display: none; }
-    .form-error.show { display: block; }
-    .hint { font-size: 12px; color: var(--muted-2); }
+  .logo { width: 44px; height: 44px; flex-shrink: 0; filter: drop-shadow(0 6px 20px rgba(183,255,60,0.25)); }
 
-    /* --- Cards --- */
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: var(--panel);
-      padding: 18px;
-      margin-bottom: 14px;
-    }
-    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .card-title { font-family: var(--font-body); font-size: 15px; font-weight: 600; }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      border: 1px solid var(--line);
-      color: var(--muted);
-    }
-    .pill.pro { color: var(--accent); border-color: rgba(183,255,60,0.35); background: var(--accent-soft); }
-    .pill.premium { color: var(--warn); border-color: rgba(255,200,87,0.35); background: rgba(255,200,87,0.1); }
-    .pill.free { color: var(--muted); }
-    .pill.expired { color: var(--danger); border-color: rgba(255,95,95,0.3); background: var(--danger-soft); }
-    .pill.active { color: var(--accent); border-color: rgba(183,255,60,0.3); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-name { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name em { font-style: normal; color: var(--accent); }
+  .brand-tag { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted-2); margin-top: 2px; }
 
-    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
-    .info-row:last-child { border-bottom: none; }
-    .info-row span { color: var(--muted); }
-    .info-row strong { font-weight: 600; }
+  .splash {
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    text-align: center;
+  }
+  .splash .logo { width: 96px; height: 96px; animation: float 3.2s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+  .splash-title { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
+  .splash-title em { font-style: normal; color: var(--accent); }
+  .splash-sub { color: var(--muted); font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; }
+  .bar { width: 190px; height: 4px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 35%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), #eaffb0); animation: load 1.15s ease-in-out infinite; }
+  @keyframes load { 0% { transform: translateX(-110%) } 100% { transform: translateX(320%) } }
 
-    .progress-bar { height: 6px; border-radius: 999px; background: #0b0e0a; border: 1px solid var(--line-soft); overflow: hidden; margin-top: 10px; }
-    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-strong), var(--accent)); border-radius: inherit; transition: width 0.4s ease; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
 
-    .divider { height: 1px; background: var(--line-soft); margin: 16px 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 12px; border-radius: 99px;
+    background: var(--panel); border: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); white-space: nowrap;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .chip.plan { color: var(--accent); border-color: rgba(183,255,60,0.28); background: var(--accent-soft); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .chip.user { color: var(--text); }
 
-    /* --- Brand switcher --- */
-    .brand-switcher { display: flex; gap: 6px; justify-content: center; margin-top: 16px; }
-    .brand-btn {
-      padding: 8px 14px;
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      background: var(--panel);
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .brand-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .brand-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-    .brand-btn[data-brand="SodaLegit"].active { border-color: var(--info); color: var(--info); background: rgba(88,213,255,0.12); }
+  .icon-btn {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--muted); cursor: pointer;
+    transition: 0.18s ease;
+  }
+  .icon-btn:hover { color: var(--danger); border-color: rgba(255,93,77,0.35); background: rgba(255,93,77,0.08); }
+  .icon-btn svg { width: 16px; height: 16px; }
 
-    /* --- Launch button --- */
-    .launch-btn { margin-top: auto; padding: 18px; font-size: 17px; }
-    .launch-btn:disabled { opacity: 0.4; }
-    .launch-btn .spinner { display: none; width: 20px; height: 20px; border: 3px solid transparent; border-top-color: #0c1008; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    .launch-btn.loading .spinner { display: block; }
-    .launch-btn.loading .btn-text { display: none; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+  .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-right: 4px; margin-right: -4px; }
 
-    /* --- Footer --- */
-    .footer { text-align: center; padding-top: 16px; color: var(--muted-2); font-size: 11px; border-top: 1px solid var(--line-soft); margin-top: auto; }
-    .footer a { color: var(--accent); }
+  .welcome { margin-bottom: 16px; }
+  .welcome h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .welcome p { margin-top: 5px; color: var(--muted); font-size: 13px; }
+  .welcome p b { color: var(--accent); font-weight: 600; }
 
-    /* --- Toast --- */
-    .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-    .toast { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); box-shadow: var(--shadow); font-size: 13px; max-width: 90vw; animation: slideUp 0.25s ease; pointer-events: auto; }
-    .toast.ok { border-color: rgba(183,255,60,0.35); }
-    .toast.err { border-color: rgba(255,95,95,0.4); }
-    .toast.warn { border-color: rgba(255,200,87,0.4); }
-    @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .cards { display: flex; flex-direction: column; gap: 12px; }
 
-    /* --- Update modal --- */
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,7,5,0.8); backdrop-filter: blur(4px); display: none; place-items: center; padding: 20px; z-index: 200; }
-    .modal-backdrop.show { display: grid; }
-    .modal { width: min(420px, 90%); border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
-    .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: space-between; }
-    .modal-header h3 { font-family: var(--font-body); font-size: 16px; }
-    .modal-body { padding: 20px; }
-    .modal-footer { padding: 16px 20px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 10px; }
+  .card {
+    position: relative;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: linear-gradient(160deg, rgba(28, 35, 24, 0.85), rgba(12, 16, 11, 0.9));
+    padding: 16px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .card::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(220px 120px at 100% 0%, var(--card-glow, rgba(183,255,60,0.16)), transparent 70%);
+    opacity: 0.55; pointer-events: none;
+  }
+  .card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.16); }
+  .card.active {
+    border-color: var(--card-accent);
+    box-shadow: 0 0 0 1px var(--card-accent) inset, 0 14px 40px -18px var(--card-accent);
+  }
+  .card-head { display: flex; align-items: flex-start; gap: 12px; position: relative; }
+  .card-icon {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: var(--card-soft); border: 1px solid var(--card-border);
+    color: var(--card-accent);
+  }
+  .card-icon svg { width: 21px; height: 21px; }
+  .card-titles { flex: 1; min-width: 0; }
+  .card-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .card-title span { color: var(--card-accent); }
+  .card-kind {
+    display: inline-block; margin-top: 5px; padding: 3px 8px; border-radius: 6px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--card-accent); background: var(--card-soft); border: 1px solid var(--card-border);
+  }
+  .card-ver { font-family: var(--mono); font-size: 11px; color: var(--muted-2); margin-top: 7px; }
 
-    @media (max-width: 480px) {
-      .app { max-width: 100%; height: 100vh; border-left: none; border-right: none; }
-      .screen { padding: 18px 16px 16px; }
-    }
-  </style>
+  .card-desc { margin-top: 12px; color: var(--muted); font-size: 12.5px; line-height: 1.55; position: relative; }
+  .feats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; position: relative; }
+  .feat {
+    font-size: 10.5px; color: var(--muted); padding: 4px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.05);
+  }
+  .feat::before { content: "•"; color: var(--card-accent); margin-right: 5px; }
+
+  .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; position: relative; }
+  .select-hint { font-size: 11px; color: var(--muted-2); display: flex; align-items: center; gap: 6px; }
+  .select-hint svg { width: 13px; height: 13px; }
+  .card.active .select-hint { color: var(--card-accent); }
+
+  .btn {
+    border: none; cursor: pointer; font-family: var(--font); font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.16s ease, filter 0.16s ease, background 0.16s ease;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn svg { width: 15px; height: 15px; }
+
+  .btn-launch {
+    padding: 11px 20px; border-radius: 12px; font-size: 13px;
+    background: var(--card-accent); color: #0a0d07;
+    box-shadow: 0 8px 24px -10px var(--card-accent);
+  }
+  .btn-launch:hover { filter: brightness(1.08); }
+  .btn-launch:disabled { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.4); }
+
+  .btn-primary {
+    width: 100%; padding: 13px 18px; border-radius: 12px; font-size: 14px;
+    background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+    color: #0a0d07; box-shadow: 0 12px 30px -12px var(--accent);
+  }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-primary:disabled { opacity: 0.6; cursor: wait; }
+  .btn-ghost {
+    padding: 10px 16px; border-radius: 10px; font-size: 12.5px;
+    background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: rgba(183,255,60,0.4); color: var(--accent); }
+
+  .panel {
+    margin-top: 16px; padding: 16px; border-radius: var(--radius);
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .panel-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-2); margin-bottom: 12px; }
+  .key-row { display: flex; gap: 8px; }
+  .input {
+    width: 100%; padding: 11px 13px; border-radius: 10px;
+    background: rgba(0,0,0,0.35); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font); font-size: 13px; outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    user-select: text;
+  }
+  .input::placeholder { color: var(--muted-2); }
+  .input:focus { border-color: rgba(183,255,60,0.55); box-shadow: 0 0 0 3px rgba(183,255,60,0.1); }
+  .key-row .input { font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+  .sub-line { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .sub-line b { color: var(--accent); }
+
+  .login-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .login-card {
+    padding: 24px; border-radius: 22px;
+    background: linear-gradient(165deg, rgba(24,30,21,0.9), rgba(10,13,9,0.92));
+    border: 1px solid var(--border);
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.9);
+  }
+  .login-head { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; margin-bottom: 22px; }
+  .login-head .logo { width: 56px; height: 56px; }
+  .login-head h2 { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+  .login-head p { color: var(--muted); font-size: 12.5px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; color: var(--muted-2); margin-bottom: 6px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .login-foot { margin-top: 16px; text-align: center; font-size: 12px; color: var(--muted-2); }
+  .login-foot a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .login-foot a:hover { text-decoration: underline; }
+  .server-toggle {
+    margin-top: 14px; font-size: 11.5px; color: var(--muted-2); cursor: pointer;
+    display: flex; align-items: center; gap: 6px; justify-content: center;
+  }
+  .server-toggle:hover { color: var(--accent); }
+  .server-box { margin-top: 10px; display: none; }
+  .server-box.open { display: block; }
+  .err {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 12.5px;
+    background: rgba(255,93,77,0.1); border: 1px solid rgba(255,93,77,0.3); color: #ff9d92;
+    display: none;
+  }
+  .err.show { display: block; }
+
+  .footer-note { margin-top: 14px; text-align: center; font-size: 10.5px; color: var(--muted-2); line-height: 1.6; }
+
+  .toasts { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 50; width: calc(100% - 48px); max-width: 420px; }
+  .toast {
+    padding: 11px 14px; border-radius: 12px; font-size: 12.5px;
+    background: rgba(20,26,17,0.95); border: 1px solid var(--border);
+    box-shadow: 0 16px 40px -20px rgba(0,0,0,0.9);
+    animation: toast-in 0.24s ease;
+  }
+  .toast.ok { border-color: rgba(183,255,60,0.35); color: var(--accent-strong); }
+  .toast.err { border-color: rgba(255,93,77,0.4); color: #ff9d92; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
+
+  .spinner {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.25); border-top-color: #0a0d07;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg) } }
+</style>
 </head>
 <body>
-  <div class="toast-wrap" id="toastWrap"></div>
-
-  <div class="modal-backdrop" id="updateModal">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Доступно обновление</h3>
-      </div>
-      <div class="modal-body">
-        <div class="info-row"><span>Текущая версия</span><strong id="modalCurrent">—</strong></div>
-        <div class="info-row"><span>Новая версия</span><strong id="modalNew">—</strong></div>
-        <div class="hint" style="margin-top:12px" id="modalChangelog"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn ghost sm" id="modalLater">Позже</button>
-        <button class="btn sm" id="modalUpdate">Обновить</button>
-      </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="canGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e7ff9c" />
+      <stop offset="1" stop-color="#7dbb16" />
+    </linearGradient>
+  </defs>
+</svg>
+<div class="app">
+  <section class="screen splash" id="screen-splash">
+    <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="18" y="6" width="28" height="52" rx="11" fill="url(#canGrad)" />
+      <rect x="20" y="8" width="24" height="9" rx="5" fill="#f4ffcf" opacity="0.6" />
+      <rect x="23" y="24" width="18" height="4" rx="2" fill="#1b2408" opacity="0.5" />
+      <circle cx="32" cy="42" r="7.5" fill="#0e1306" opacity="0.82" />
+      <path d="M28.5 42.2l2.3 2.3 4.6-5.4" stroke="#b7ff3c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <div>
+      <div class="splash-title">Soda<em>Dlc</em></div>
+      <div class="splash-sub" style="margin-top:8px">Visual Client Loader</div>
     </div>
-  </div>
+    <div class="bar"><i></i></div>
+  </section>
 
-  <div class="app" id="app">
-    <!-- SPLASH / LOADING -->
-    <div class="screen active" id="screenSplash">
-      <div class="content" style="align-items:center;justify-content:center;text-align:center">
-        <div class="logo-wrap" style="width:96px;height:96px;margin:0 auto 24px;border-radius:20px;background:linear-gradient(160deg,#0d100d,#141812);border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden">
-          <img id="splashLogo" src="/logo.svg" alt="Soda" width="56" height="56" style="border-radius:12px">
-        </div>
-        <div class="brand-name" id="splashBrand" style="font-family:var(--font-display);font-weight:800;font-size:28px;letter-spacing:-0.02em">Soda<em>Dlc</em></div>
-        <div class="brand-tag" id="splashTag" style="margin-top:4px">Visual Client Loader</div>
-        <div class="progress-bar" style="width:100%;max-width:280px;margin:28px auto 16px"><div class="progress-fill" id="splashProgress" style="width:0%"></div></div>
-        <div class="status" id="splashStatus" style="min-height:20px">Инициализация…</div>
-        <div class="dots" style="display:flex;gap:4px;justify-content:center;margin-top:20px"><div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--line);animation:dotPulse 1.4s ease-in-out infinite both"></div><div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--line);animation:dotPulse 1.4s ease-in-out infinite both;animation-delay:-0.32s"></div><div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--line);animation:dotPulse 1.4s ease-in-out infinite both;animation-delay:-0.16s"></div></div>
-      </div>
-      <div class="footer">Soda Launcher <span id="splashVersion" class="version-badge">v1.0.0</span></div>
-    </div>
-
-    <!-- LOGIN -->
-    <div class="screen" id="screenLogin">
-      <div class="header">
-        <div class="brand"><img src="/logo.svg" alt="Soda" width="36" height="36"><span>Soda<em id="loginBrandEm">Dlc</em></span></div>
-        <span class="version-badge" id="loginVersion">v1.0.0</span>
-      </div>
-      <div class="content" style="justify-content:center">
-        <div style="width:100%;max-width:360px;margin:0 auto">
-          <h2 style="font-size:22px;margin-bottom:4px;text-align:center">Вход в лаунчер</h2>
-          <p style="color:var(--muted);font-size:13px;text-align:center;margin-bottom:24px">Авторизуйтесь для доступа к клиенту</p>
-          <form class="form" id="loginForm">
-            <div class="form-error" id="loginError"></div>
-            <div class="field"><label for="loginUser">Никнейм</label><input class="input" id="loginUser" name="username" autocomplete="username" placeholder="lorezzzz" maxlength="16" required></div>
-            <div class="field"><label for="loginPass">Пароль</label><input class="input" id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
-            <button class="btn block" type="submit" id="loginBtn">Войти</button>
-          </form>
-          <div class="divider"></div>
-          <div class="brand-switcher" id="loginBrandSwitcher"></div>
-          <p class="hint" style="text-align:center;margin-top:16px">Нет аккаунта? <a href="/register" target="_blank">Зарегистрироваться на сайте</a></p>
+  <section class="screen hidden" id="screen-login">
+    <div class="topbar">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="18" y="6" width="28" height="52" rx="11" fill="url(#canGrad)" />
+          <rect x="20" y="8" width="24" height="9" rx="5" fill="#f4ffcf" opacity="0.6" />
+          <rect x="23" y="24" width="18" height="4" rx="2" fill="#1b2408" opacity="0.5" />
+          <circle cx="32" cy="42" r="7.5" fill="#0e1306" opacity="0.82" />
+          <path d="M28.5 42.2l2.3 2.3 4.6-5.4" stroke="#b7ff3c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div>
+          <div class="brand-name">Soda<em>Dlc</em></div>
+          <div class="brand-tag">Launcher</div>
         </div>
       </div>
-      <div class="footer">Soda Launcher v1.0.0</div>
+      <span class="chip"><span class="dot"></span><span id="loginPing">online</span></span>
     </div>
 
-    <!-- MAIN (after login) -->
-    <div class="screen" id="screenMain">
-      <div class="header">
-        <div class="brand"><img src="/logo.svg" alt="Soda" width="36" height="36"><span>Soda<em id="mainBrandEm">Dlc</em></span></div>
-        <span class="version-badge" id="mainVersion">v1.0.0</span>
-      </div>
-      <div class="content">
-        <!-- User bar -->
-        <div class="card" style="display:flex;align-items:center;gap:12px;padding:14px">
-          <div class="avatar" id="mainAvatar" style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#58d5ff);display:grid;place-items:center;font-weight:800;font-size:16px;color:#0a0c0a">?</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:15px" id="mainUsername">—</div>
-            <div class="hint" id="mainSubStatus">—</div>
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-head">
+          <h2>Вход в аккаунт</h2>
+          <p>Используйте ник и пароль от сайта SodaDlc</p>
+        </div>
+        <form id="loginForm" autocomplete="off">
+          <div class="field">
+            <label for="username">Ник</label>
+            <input class="input" id="username" type="text" placeholder="your_nick" autocomplete="username" spellcheck="false" />
           </div>
-          <button class="btn ghost sm" id="btnLogout">Выйти</button>
+          <div class="field">
+            <label for="password">Пароль</label>
+            <input class="input" id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <div class="err" id="loginErr"></div>
+          <button class="btn btn-primary" id="loginBtn" type="submit" style="margin-top:14px">Войти</button>
+        </form>
+        <div class="server-toggle" id="serverToggle">
+          <span>Настройки сервера</span>
         </div>
-
-        <!-- Subscription card -->
-        <div class="card" id="subCard">
-          <div class="card-header"><span class="card-title">Подписка</span><span class="pill" id="subPill">Free</span></div>
-          <div class="info-row"><span>Тариф</span><strong id="subPlan">Free</strong></div>
-          <div class="info-row"><span>Действует до</span><strong id="subUntil">бессрочно</strong></div>
-          <div class="info-row"><span>Осталось</span><strong id="subLeft">∞</strong></div>
-          <div class="progress-bar" id="subProgressWrap"><div class="progress-fill" id="subProgress" style="width:100%"></div></div>
-          <div class="hint" style="margin-top:8px" id="subHint">Активируйте ключ для доступа к Pro/Premium</div>
+        <div class="server-box" id="serverBox">
+          <div class="field" style="margin:0">
+            <label for="serverInput">Адрес сайта</label>
+            <input class="input" id="serverInput" type="text" placeholder="https://sodadlc.onrender.com" spellcheck="false" />
+          </div>
         </div>
-
-        <!-- Activate key card -->
-        <div class="card" id="keyCard">
-          <div class="card-header"><span class="card-title">Активация ключа</span></div>
-          <form class="form" id="keyForm">
-            <div class="form-error" id="keyError"></div>
-            <div class="field"><label for="keyInput">Ключ</label><input class="input mono" id="keyInput" placeholder="SODA-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="40" style="font-family:var(--font-body);letter-spacing:0.06em;text-transform:uppercase" required></div>
-            <button class="btn block" type="submit" id="keyBtn">Активировать</button>
-          </form>
+        <div class="login-foot">
+          Нет аккаунта? <a id="registerLink">Зарегистрируйтесь на сайте</a>
         </div>
-
-        <!-- Launch card -->
-        <div class="card" id="launchCard">
-          <div class="card-header"><span class="card-title">Запуск клиента</span></div>
-          <div class="info-row"><span>Статус</span><strong id="launchStatus">Проверка…</strong></div>
-          <div class="info-row"><span>Версия клиента</span><strong id="clientVersion">—</strong></div>
-          <button class="btn block launch-btn" id="btnLaunch" disabled>
-            <span class="spinner"></span>
-            <span class="btn-text">Запустить SodaDlc</span>
-          </button>
-          <div class="hint" style="margin-top:10px;text-align:center" id="launchHint">Войдите и активируйте ключ для запуска</div>
-        </div>
-
-        <div class="divider"></div>
-        <div class="brand-switcher" id="mainBrandSwitcher"></div>
       </div>
-      <div class="footer">
-        <a href="/" target="_blank">Сайт</a> · <a href="/cabinet" target="_blank">Кабинет</a> · <a href="/terms" target="_blank">Соглашение</a>
+      <div class="footer-note" id="serverNote"></div>
+    </div>
+  </section>
+
+  <section class="screen hidden" id="screen-main">
+    <div class="topbar">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="18" y="6" width="28" height="52" rx="11" fill="url(#canGrad)" />
+          <rect x="20" y="8" width="24" height="9" rx="5" fill="#f4ffcf" opacity="0.6" />
+          <rect x="23" y="24" width="18" height="4" rx="2" fill="#1b2408" opacity="0.5" />
+          <circle cx="32" cy="42" r="7.5" fill="#0e1306" opacity="0.82" />
+          <path d="M28.5 42.2l2.3 2.3 4.6-5.4" stroke="#b7ff3c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div>
+          <div class="brand-name">Soda<em>Dlc</em></div>
+          <div class="brand-tag">Launcher</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="chip user" id="chipUser">—</span>
+        <span class="chip plan" id="chipPlan">free</span>
+        <button class="icon-btn" id="logoutBtn" title="Выйти">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
       </div>
     </div>
-  </div>
 
-  <script>
-    // ============ CONFIG ============
-    const BRANDS = {
-      SodaDlc: { name: "Soda<em>Dlc</em>", tag: "Visual Client Loader", accent: "#b7ff3c", accentStrong: "#9be619", logo: "/logo.svg" },
-      SodaVisuals: { name: "Soda<em>Visuals</em>", tag: "Visual Client", accent: "#b7ff3c", accentStrong: "#9be619", logo: "/logo.svg" },
-      SodaLegit: { name: "Soda<em>Legit</em>", tag: "Legit Client", accent: "#58d5ff", accentStrong: "#3abde8", logo: "/logo.svg" }
-    };
-    const APP_VERSION = "1.0.0";
-    const API_BASE = ""; // same origin
+    <div class="scroll">
+      <div class="welcome">
+        <h1 id="greeting">Добро пожаловать</h1>
+        <p id="subInfo">Подписка: <b>free</b></p>
+      </div>
 
-    // ============ STATE ============
-    let currentBrand = "SodaDlc";
-    let sessionToken = null;
-    let userData = null;
-    let launchReady = false;
+      <div class="cards" id="cards"></div>
 
-    // ============ UTILS ============
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => document.querySelectorAll(sel);
-    const show = (el) => el.classList.add("active");
-    const hide = (el) => el.classList.remove("active");
-    const toggle = (el, on) => el.classList.toggle("active", on);
+      <div class="panel">
+        <div class="panel-title">Активация ключа</div>
+        <div class="key-row">
+          <input class="input" id="keyInput" type="text" placeholder="SODA-XXXX-XXXX" spellcheck="false" />
+          <button class="btn btn-ghost" id="activateBtn">Активировать</button>
+        </div>
+        <div class="sub-line">
+          <span id="keyHint">Ключ активируется на ваш аккаунт</span>
+          <b id="daysLeft"></b>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
 
-    function toast(msg, type = "ok") {
-      const wrap = $("#toastWrap");
-      const el = document.createElement("div");
-      el.className = `toast ${type}`;
-      el.textContent = msg;
-      wrap.appendChild(el);
-      setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .25s"; setTimeout(() => el.remove(), 260); }, 3500);
+<div class="toasts" id="toasts"></div>
+
+<script>
+  const DEFAULT_SERVER = "https://sodadlc.onrender.com";
+  const APP_VERSION = "1.0.0";
+
+  const VERSIONS = {
+    "SodaDlc Legit": {
+      accent: "#b7ff3c", soft: "rgba(183,255,60,0.12)", border: "rgba(183,255,60,0.28)",
+      kind: "Legit", tag: "SAFE",
+      desc: "Чистый и аккуратный визуал для повседневной игры. Минимум вмешательства, максимум стабильности и плавности.",
+      feats: ["Безопасный рендер", "Плавные анимации", "Стабильный FPS"]
+    },
+    "SodaDlc Rage": {
+      accent: "#ff5a3c", soft: "rgba(255,90,60,0.12)", border: "rgba(255,90,60,0.3)",
+      kind: "Rage", tag: "MAX",
+      desc: "Агрессивный визуал с максимальной выразительностью. Яркие эффекты, сочные цвета и полная отдача картинки.",
+      feats: ["Яркие эффекты", "Сочные цвета", "Максимальная отдача"]
+    },
+    "SodaVisuals": {
+      accent: "#58d5ff", soft: "rgba(88,213,255,0.12)", border: "rgba(88,213,255,0.3)",
+      kind: "Visuals", tag: "CLASSIC",
+      desc: "Классические визуалы SodaVisuals. Проверенная временем картинка с современными шейдерами и стабильной работой.",
+      feats: ["Классический стиль", "Новые шейдеры", "Проверенная стабильность"]
     }
+  };
 
-    function showError(el, msg) { el.textContent = msg; el.classList.add("show"); }
-    function hideError(el) { el.classList.remove("show"); }
+  const $ = (s) => document.querySelector(s);
+  const state = { user: null, sub: null, selected: localStorage.getItem("soda_version") || "SodaDlc Legit" };
 
-    function setBrandUI(brandKey) {
-      const b = BRANDS[brandKey];
-      if (!b) return;
-      currentBrand = brandKey;
-      document.documentElement.style.setProperty("--accent", b.accent);
-      document.documentElement.style.setProperty("--accent-strong", b.accentStrong);
-      $$("#splashLogo, #loginBrandEm, #mainBrandEm").forEach(el => {
-        if (el.tagName === "IMG") el.src = b.logo + "?v=" + Date.now();
-        else el.innerHTML = b.name.replace("Soda<em>", "").replace("</em>", "");
-      });
-      $$("#splashBrand, #loginBrandEm, #mainBrandEm").forEach(el => {
-        if (el.id === "splashBrand") el.innerHTML = b.name;
-        else if (el.id === "loginBrandEm") el.innerHTML = b.name.replace("Soda<em>", "").replace("</em>", "");
-        else if (el.id === "mainBrandEm") el.innerHTML = b.name.replace("Soda<em>", "").replace("</em>", "");
-      });
-      $$("#splashTag").forEach(el => el.textContent = b.tag);
-      $$(".version-badge").forEach(el => el.textContent = "v" + APP_VERSION);
-      $$(".brand-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.brand === brandKey));
-    }
+  function server() {
+    const saved = localStorage.getItem("soda_server");
+    return (saved || DEFAULT_SERVER).replace(/\/+$/, "");
+  }
 
-    function switchScreen(id) {
-      $$(".screen").forEach(s => hide(s));
-      show($(id));
-    }
+  function token() { return localStorage.getItem("soda_token") || ""; }
 
-    function renderBrandSwitcher(containerId) {
-      const container = $(containerId);
-      container.innerHTML = Object.keys(BRANDS).map(k => `
-        <button class="brand-btn${k === currentBrand ? " active" : ""}" data-brand="${k}">${k}</button>
-      `).join("");
-      container.querySelectorAll(".brand-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          setBrandUI(btn.dataset.brand);
-          checkVersion();
-        });
-      });
-    }
+  function showToast(msg, type) {
+    const el = document.createElement("div");
+    el.className = "toast " + (type || "ok");
+    el.textContent = msg;
+    $("#toasts").appendChild(el);
+    setTimeout(() => {
+      el.style.transition = "opacity .25s ease, transform .25s ease";
+      el.style.opacity = "0";
+      el.style.transform = "translateY(8px)";
+      setTimeout(() => el.remove(), 260);
+    }, 3200);
+  }
 
-    function formatPlan(plan) { return { free: "Free", pro: "Pro", premium: "Premium" }[plan] || plan; }
-    function daysLeft(ts) { if (!ts) return null; return Math.max(0, Math.ceil((ts - Date.now()) / 864e5)); }
+  function showScreen(name) {
+    ["splash", "login", "main"].forEach((n) => {
+      $("#screen-" + n).classList.toggle("hidden", n !== name);
+    });
+  }
 
-    // ============ API ============
-    async function api(path, opts = {}) {
-      const res = await fetch(path, {
+  async function api(path, opts) {
+    opts = opts || {};
+    const headers = { "Accept": "application/json", "Content-Type": "application/json" };
+    if (token()) headers["Authorization"] = "Bearer " + token();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    let res;
+    try {
+      res = await fetch(server() + path, {
         method: opts.method || "GET",
-        credentials: "same-origin",
-        headers: { "Accept": "application/json", "Content-Type": "application/json", ...(opts.headers || {}) },
+        headers,
+        signal: controller.signal,
         body: opts.body ? JSON.stringify(opts.body) : undefined
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      return data;
+    } catch (e) {
+      throw new Error(e.name === "AbortError"
+        ? "Сервер не отвечает. Возможно, он просыпается — попробуйте ещё раз."
+        : "Нет связи с сервером. Проверьте адрес сайта.");
+    } finally {
+      clearTimeout(timer);
     }
-
-    async function apiLauncher(path, body) {
-      return api("/api/launcher" + path, { method: "POST", body: { ...body, brand: currentBrand, version: APP_VERSION, os: getOS(), arch: getArch() } });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && path !== "/api/launcher/auth") {
+      clearAuth();
+      showScreen("login");
+      throw new Error("Сессия истекла, войдите снова");
     }
+    if (!res.ok) throw new Error(data.error || "Ошибка сервера (" + res.status + ")");
+    return data;
+  }
 
-    function getOS() {
-      const ua = navigator.userAgent;
-      if (ua.includes("Windows")) return "windows";
-      if (ua.includes("Mac")) return "macos";
-      if (ua.includes("Linux")) return "linux";
-      return "unknown";
+  function clearAuth() {
+    localStorage.removeItem("soda_token");
+    state.user = null;
+    state.sub = null;
+  }
+
+  function planLabel(plan) {
+    return { free: "Free", pro: "Pro", premium: "Premium" }[plan] || plan || "Free";
+  }
+
+  function daysLeft(ts) {
+    if (!ts) return null;
+    return Math.max(0, Math.ceil((ts - Date.now()) / 864e5));
+  }
+
+  function osName() {
+    const ua = navigator.userAgent || "";
+    if (ua.includes("Windows")) return "windows";
+    if (ua.includes("Mac")) return "macos";
+    if (ua.includes("Linux")) return "linux";
+    return "unknown";
+  }
+
+  function applyUser(data) {
+    state.user = data.user || state.user;
+    state.sub = data.subscription || state.sub;
+    const u = state.user;
+    if (!u) return;
+    $("#chipUser").textContent = u.username;
+    const plan = (state.sub && state.sub.plan) || u.plan || "free";
+    $("#chipPlan").textContent = planLabel(plan);
+    $("#greeting").textContent = "С возвращением, " + u.username;
+    const exp = state.sub && state.sub.expiresAt;
+    const dl = daysLeft(exp);
+    $("#subInfo").innerHTML = "Подписка: <b>" + planLabel(plan) + "</b>" +
+      (dl !== null ? " · осталось " + dl + " дн." : "");
+    $("#daysLeft").textContent = dl !== null ? dl + " дн." : (plan === "free" ? "нет подписки" : "бессрочно");
+  }
+
+  function iconFor(key) {
+    if (key === "SodaDlc Rage") {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
     }
-    function getArch() { return navigator.userAgent.includes("x64") || navigator.userAgent.includes("WOW64") ? "x64" : "x86"; }
-
-    // ============ VERSION CHECK ============
-    async function checkVersion() {
-      try {
-        const data = await api(`/api/launcher/version?brand=${encodeURIComponent(currentBrand)}&current=${APP_VERSION}`);
-        $$("#splashVersion, #loginVersion, #mainVersion").forEach(el => el.textContent = "v" + data.version);
-        if (data.needsUpdate) showUpdateModal(data);
-      } catch (e) { console.warn("Version check failed:", e); }
+    if (key === "SodaVisuals") {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
     }
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>';
+  }
 
-    function showUpdateModal(data) {
-      $("#modalCurrent").textContent = APP_VERSION;
-      $("#modalNew").textContent = data.version;
-      $("#modalChangelog").textContent = data.changelog || "—";
-      $("#updateModal").classList.add("show");
-      $("#modalUpdate").onclick = () => { window.open(getDownloadUrl(data), "_blank"); $("#updateModal").classList.remove("show"); };
-      $("#modalLater").onclick = () => $("#updateModal").classList.remove("show");
-    }
-    function getDownloadUrl(data) { const os = getOS(); return os === "windows" ? data.downloadUrlWin : os === "linux" ? data.downloadUrlLinux : data.downloadUrlMac; }
+  function renderCards() {
+    const wrap = $("#cards");
+    wrap.innerHTML = Object.keys(VERSIONS).map((key) => {
+      const v = VERSIONS[key];
+      const active = key === state.selected;
+      return '<div class="card' + (active ? " active" : "") + '" data-key="' + key + '" style="--card-accent:' + v.accent + ';--card-soft:' + v.soft + ';--card-border:' + v.border + ';--card-glow:' + v.soft + '">' +
+        '<div class="card-head">' +
+          '<div class="card-icon">' + iconFor(key) + '</div>' +
+          '<div class="card-titles">' +
+            '<div class="card-title">' + key + '</div>' +
+            '<span class="card-kind">' + v.tag + '</span>' +
+            '<div class="card-ver" data-ver="' + key + '">v' + APP_VERSION + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<p class="card-desc">' + v.desc + '</p>' +
+        '<div class="feats">' + v.feats.map((f) => '<span class="feat">' + f + '</span>').join("") + '</div>' +
+        '<div class="card-foot">' +
+          '<span class="select-hint">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+            (active ? "Выбрано" : "Выбрать") +
+          '</span>' +
+          '<button class="btn btn-launch" data-launch="' + key + '">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
+            'Запустить' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    }).join("");
 
-    // ============ AUTH ============
-    async function tryAutoLogin() {
-      // check for existing session via cookie (handled by browser)
-      try {
-        const data = await api("/api/me");
-        userData = data.user;
-        onAuthSuccess(data.user);
-        return true;
-      } catch { return false; }
-    }
-
-    async function doLogin(username, password) {
-      const data = await apiLauncher("/auth", { username, password });
-      sessionToken = data.token;
-      userData = data.user;
-      onAuthSuccess(data.user);
-    }
-
-    function onAuthSuccess(user) {
-      userData = user;
-      updateMainUI();
-      switchScreen("screenMain");
-      logLaunch("auto_login");
-      checkSubscription();
-    }
-
-    function updateMainUI() {
-      if (!userData) return;
-      $("#mainAvatar").textContent = userData.username.slice(0, 2).toUpperCase();
-      $("#mainUsername").textContent = userData.username;
-      const plan = userData.plan || "free";
-      const left = daysLeft(userData.planExpiresAt);
-      const planLabel = formatPlan(plan);
-      $("#subPill").className = "pill " + plan + (userData.planExpiresAt && userData.planExpiresAt < Date.now() && plan !== "free" ? " expired" : "");
-      $("#subPill").textContent = planLabel;
-      $("#subPlan").textContent = planLabel;
-      $("#subUntil").textContent = userData.planExpiresAt ? new Date(userData.planExpiresAt).toLocaleDateString("ru-RU") : "бессрочно";
-      $("#subLeft").textContent = plan === "free" ? "∞" : left + " дн.";
-      const pct = plan === "free" ? 100 : Math.min(100, Math.max(0, (left || 0) / 30 * 100));
-      $("#subProgress").style.width = pct + "%";
-      $("#subHint").textContent = plan === "free" ? "Активируйте ключ для доступа к Pro/Premium" : `Подписка ${planLabel} активна. Активация нового ключа продлит срок.`;
-      checkLaunchAvailability();
-    }
-
-    async function checkSubscription() {
-      try {
-        const data = await api("/api/launcher/status");
-        userData = data.user;
-        updateMainUI();
-      } catch (e) { console.warn("Sub check failed:", e); }
-    }
-
-    async function doLogout() {
-      await api("/api/logout", { method: "POST" });
-      sessionToken = null;
-      userData = null;
-      launchReady = false;
-      switchScreen("screenLogin");
-    }
-
-    // ============ KEY ACTIVATION ============
-    $("#keyForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      hideError($("#keyError"));
-      const key = $("#keyInput").value.trim();
-      if (!key) return;
-      const btn = $("#keyBtn");
-      btn.disabled = true; btn.textContent = "Активируем…";
-      try {
-        const data = await apiLauncher("/activate", { key });
-        toast("Ключ активирован!", "ok");
-        $("#keyInput").value = "";
-        await checkSubscription();
-      } catch (err) { showError($("#keyError"), err.message); }
-      finally { btn.disabled = false; btn.textContent = "Активировать"; }
+    wrap.querySelectorAll(".card").forEach((card) => {
+      card.addEventListener("click", () => selectVersion(card.dataset.key));
     });
+    wrap.querySelectorAll("[data-launch]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectVersion(btn.dataset.launch);
+        showToast("Запуск " + btn.dataset.launch + " появится в следующем обновлении", "ok");
+      });
+    });
+  }
 
-    // ============ LOGIN FORM ============
+  function selectVersion(key) {
+    state.selected = key;
+    localStorage.setItem("soda_version", key);
+    const v = VERSIONS[key];
+    document.documentElement.style.setProperty("--accent", v.accent);
+    document.documentElement.style.setProperty("--accent-strong", v.accent === "#b7ff3c" ? "#d4ff7a" : v.accent);
+    document.documentElement.style.setProperty("--accent-soft", v.soft);
+    renderCards();
+    loadVersion(key);
+  }
+
+  async function loadVersion(key) {
+    try {
+      const data = await api("/api/launcher/version?brand=" + encodeURIComponent(key) + "&current=" + APP_VERSION);
+      const el = document.querySelector('[data-ver="' + key + '"]');
+      if (el && data.version) el.textContent = "v" + data.version;
+    } catch (e) {}
+  }
+
+  async function login(username, password) {
+    const data = await api("/api/launcher/auth", {
+      method: "POST",
+      body: {
+        username, password,
+        brand: state.selected,
+        version: APP_VERSION,
+        os: osName(),
+        arch: "x64"
+      }
+    });
+    localStorage.setItem("soda_token", data.token);
+    state.user = data.user;
+    state.sub = data.subscription;
+  }
+
+  async function refreshStatus() {
+    const data = await api("/api/launcher/status");
+    applyUser(data);
+    return data;
+  }
+
+  async function activateKey(key) {
+    const data = await api("/api/launcher/activate", {
+      method: "POST",
+      body: { key, brand: state.selected, version: APP_VERSION, os: osName(), arch: "x64" }
+    });
+    state.sub = data.subscription;
+    await refreshStatus();
+  }
+
+  function bind() {
     $("#loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      hideError($("#loginError"));
-      const user = $("#loginUser").value.trim();
-      const pass = $("#loginPass").value;
-      if (!user || !pass) return;
-      const btn = $("#loginBtn");
-      btn.disabled = true; btn.textContent = "Входим…";
-      try { await doLogin(user, pass); }
-      catch (err) { showError($("#loginError"), err.message); }
-      finally { btn.disabled = false; btn.textContent = "Войти"; }
-    });
-
-    // ============ LAUNCH ============
-    async function checkLaunchAvailability() {
-      try {
-        const data = await api("/api/launcher/status");
-        const can = data.canLaunch;
-        launchReady = can;
-        $("#btnLaunch").disabled = !can;
-        $("#launchStatus").textContent = can ? "Готов к запуску" : "Нет активной подписки";
-        $("#launchStatus").style.color = can ? "var(--accent)" : "var(--danger)";
-        $("#launchHint").textContent = can ? "Нажмите для запуска клиента" : "Требуется активная подписка Pro или Premium";
-        $("#clientVersion").textContent = data.user.plan !== "free" ? "v" + APP_VERSION : "—";
-      } catch (e) { console.warn("Launch check failed:", e); }
-    }
-
-    $("#btnLaunch").addEventListener("click", async () => {
-      if (!launchReady) return;
-      const btn = $("#btnLaunch");
-      btn.classList.add("loading"); btn.disabled = true;
-      try {
-        await apiLauncher("/log", { action: "launch", details: "User clicked launch" });
-        toast("Запуск клиента…", "ok");
-        // Here you'd trigger actual client launch via native bridge
-        // window.external.launch() or similar
-        setTimeout(() => { btn.classList.remove("loading"); btn.disabled = false; }, 2000);
-      } catch (e) { toast(e.message, "err"); btn.classList.remove("loading"); btn.disabled = false; }
-    });
-
-    // ============ SPLASH SIMULATION ============
-    async function runSplash() {
-      const steps = [
-        { p: 15, t: "Проверка обновлений…" },
-        { p: 35, t: "Загрузка конфигурации…" },
-        { p: 55, t: "Проверка сессии…" },
-        { p: 75, t: "Подключение к API…" },
-        { p: 90, t: "Почти готово…" },
-        { p: 100, t: "Готово" }
-      ];
-      for (const s of steps) {
-        $("#splashProgress").style.width = s.p + "%";
-        $("#splashStatus").textContent = s.t;
-        await new Promise(r => setTimeout(r, 200 + Math.random() * 150));
+      const err = $("#loginErr");
+      err.classList.remove("show");
+      const username = $("#username").value.trim();
+      const password = $("#password").value;
+      if (!username || !password) {
+        err.textContent = "Введите ник и пароль";
+        err.classList.add("show");
+        return;
       }
-      await new Promise(r => setTimeout(r, 300));
-      const loggedIn = await tryAutoLogin();
-      if (!loggedIn) switchScreen("screenLogin");
+      const savedServer = $("#serverInput").value.trim();
+      if (savedServer) localStorage.setItem("soda_server", savedServer.replace(/\/+$/, ""));
+      const btn = $("#loginBtn");
+      const old = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Входим...';
+      try {
+        await login(username, password);
+        await refreshStatus();
+        showToast("Добро пожаловать, " + username, "ok");
+        showScreen("main");
+        loadVersion(state.selected);
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.add("show");
+        clearAuth();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = old;
+      }
+    });
+
+    $("#serverToggle").addEventListener("click", () => {
+      $("#serverBox").classList.toggle("open");
+    });
+
+    $("#registerLink").addEventListener("click", () => {
+      showToast("Откройте " + server() + "/register в браузере", "ok");
+    });
+
+    $("#logoutBtn").addEventListener("click", () => {
+      clearAuth();
+      $("#password").value = "";
+      showScreen("login");
+      showToast("Вы вышли из аккаунта", "ok");
+    });
+
+    $("#activateBtn").addEventListener("click", async () => {
+      const key = $("#keyInput").value.trim();
+      if (!key) return showToast("Введите ключ", "err");
+      const btn = $("#activateBtn");
+      btn.disabled = true;
+      try {
+        await activateKey(key);
+        $("#keyInput").value = "";
+        showToast("Ключ активирован!", "ok");
+      } catch (ex) {
+        showToast(ex.message, "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $("#keyInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $("#activateBtn").click();
+    });
+  }
+
+  async function boot() {
+    const override = new URLSearchParams(location.search).get("server");
+    if (override) localStorage.setItem("soda_server", override.replace(/\/+$/, ""));
+    bind();
+    $("#serverInput").value = server();
+    $("#serverNote").textContent = "Сервер: " + server();
+    selectVersion(state.selected);
+    await new Promise((r) => setTimeout(r, 900));
+    if (!token()) {
+      showScreen("login");
+      return;
     }
-
-    // ============ INIT ============
-    async function init() {
-      setBrandUI(currentBrand);
-      renderBrandSwitcher("loginBrandSwitcher");
-      renderBrandSwitcher("mainBrandSwitcher");
-      await checkVersion();
-      await runSplash();
-
-      $("#btnLogout").addEventListener("click", doLogout);
+    try {
+      await refreshStatus();
+      showScreen("main");
+      loadVersion(state.selected);
+    } catch (e) {
+      clearAuth();
+      showScreen("login");
     }
+  }
 
-    // Expose for native bridge
-    window.LauncherAPI = {
-      login: (user, pass) => doLogin(user, pass),
-      activateKey: (key) => apiLauncher("/activate", { key }),
-      getStatus: () => api("/api/launcher/status"),
-      launch: () => $("#btnLaunch").click(),
-      setBrand: setBrandUI,
-      getBrand: () => currentBrand,
-      onReady: (cb) => { if (launchReady) cb(); else { const iv = setInterval(() => { if (launchReady) { clearInterval(iv); cb(); } }, 100); } }
-    };
-
-    document.addEventListener("DOMContentLoaded", init);
-  </script>
+  boot();
+</script>
 </body>
 </html>

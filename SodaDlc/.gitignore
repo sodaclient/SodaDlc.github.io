@@ -6,3 +6,7 @@ data/*.db-wal
 .DS_Store
 .env
 bin/
+
+launcher/linux/build/
+launcher/windows/obj/
+launcher/windows/bin/

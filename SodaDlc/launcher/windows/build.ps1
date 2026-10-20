@@ -1,87 +1,42 @@
-<# 
-.SYNOPSIS
-Build script for Soda Launcher Windows (.exe)
-
-.DESCRIPTION
-Compiles the C# WebView2 launcher as a single-file self-contained executable.
-Requires .NET 8 SDK and Visual Studio Build Tools.
-
-.USAGE
-powershell -ExecutionPolicy Bypass -File build.ps1
-#>
-
-param(
-    [string]$Configuration = "Release",
-    [string]$Runtime = "win-x64",
-    [string]$OutputDir = "bin\publish"
-)
-
 $ErrorActionPreference = "Stop"
 
-Write-Host "=== Soda Launcher Windows Build ===" -ForegroundColor Cyan
-Write-Host "Configuration: $Configuration"
-Write-Host "Runtime: $Runtime"
+Write-Host ""
+Write-Host "  SodaDlc Launcher - Windows build" -ForegroundColor Green
+Write-Host "  ================================" -ForegroundColor DarkGreen
 Write-Host ""
 
-# Check .NET SDK
-try {
-    $dotnetVersion = dotnet --version
-    Write-Host "Found .NET SDK: $dotnetVersion" -ForegroundColor Green
-} catch {
-    Write-Error "ERROR: .NET SDK not found. Install .NET 8 SDK from https://dotnet.microsoft.com/download"
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+    Write-Host "  [X] .NET SDK не найден." -ForegroundColor Red
+    Write-Host "      Установите .NET 8 SDK: https://dotnet.microsoft.com/download/dotnet/8.0" -ForegroundColor Yellow
     exit 1
 }
 
-# Check project file
-$projectPath = "SodaLauncher.csproj"
-if (-not (Test-Path $projectPath)) {
-    Write-Error "ERROR: $projectPath not found. Run from launcher/windows directory."
-    exit 1
-}
+$sdk = (dotnet --version)
+Write-Host "  [OK] .NET SDK $sdk" -ForegroundColor Green
 
-# Convert logo.svg to logo.ico if needed
-$logoSvg = "assets\logo.svg"
-$logoIco = "assets\logo.ico"
-if (Test-Path $logoSvg -and -not (Test-Path $logoIco)) {
-    Write-Host "Converting logo.svg to logo.ico..." -ForegroundColor Yellow
-    # Requires ImageMagick or similar
+$assets = Join-Path $PSScriptRoot "assets"
+if (-not (Test-Path (Join-Path $assets "logo.ico"))) {
+    Write-Host "  [..] Генерирую иконку..." -ForegroundColor Yellow
     if (Get-Command magick -ErrorAction SilentlyContinue) {
-        magick convert $logoSvg -define icon:auto-resize=256,128,64,48,32,16 $logoIco
-        Write-Host "Icon created: $logoIco" -ForegroundColor Green
-    } elseif (Get-Command convert -ErrorAction SilentlyContinue) {
-        convert $logoSvg -define icon:auto-resize=256,128,64,48,32,16 $logoIco
-        Write-Host "Icon created: $logoIco" -ForegroundColor Green
+        magick -background none (Join-Path $assets "logo.svg") -define icon:auto-resize=256,128,64,48,32,16 (Join-Path $assets "logo.ico")
     } else {
-        Write-Warning "ImageMagick not found. Skipping icon conversion. Install from https://imagemagick.org"
+        Write-Host "  [!] ImageMagick не найден, иконка будет без логотипа" -ForegroundColor Yellow
     }
 }
 
-# Restore dependencies
-Write-Host "Restoring NuGet packages..." -ForegroundColor Yellow
-dotnet restore $projectPath
-
-# Build and publish
-Write-Host "Publishing single-file executable..." -ForegroundColor Yellow
-dotnet publish $projectPath `
-    -c $Configuration `
-    -r $Runtime `
-    --self-contained true `
+Write-Host "  [..] Сборка (Release, win-x64, single-file)..." -ForegroundColor Yellow
+dotnet publish -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:EnableCompressionInSingleFile=true `
-    -o $OutputDir
+    -p:EnableCompressionInSingleFile=true
 
-# Verify output
-$exePath = Join-Path $OutputDir "SodaLauncher.exe"
-if (Test-Path $exePath) {
-    $size = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
-    Write-Host ""
-    Write-Host "=== BUILD SUCCESS ===" -ForegroundColor Green
-    Write-Host "Output: $exePath"
-    Write-Host "Size: $size MB"
-    Write-Host ""
-    Write-Host "To run: .\$exePath"
-} else {
-    Write-Error "Build failed - executable not found"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  [X] Сборка не удалась" -ForegroundColor Red
     exit 1
 }
+
+$exe = Join-Path $PSScriptRoot "bin\Release\net8.0-windows\win-x64\publish\SodaLauncher.exe"
+Write-Host ""
+Write-Host "  [OK] Готово!" -ForegroundColor Green
+Write-Host "  EXE: $exe" -ForegroundColor Cyan
+Write-Host ""

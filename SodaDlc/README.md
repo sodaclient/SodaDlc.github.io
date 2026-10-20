@@ -44,10 +44,12 @@ SodaDlc/
 │   ├── terms.html     # соглашение
 │   ├── privacy.html   # политика конфиденциальности
 │   ├── zapret.html    # инструкция по Zapret
+│   ├── launcher.html  # веб-лаунчер в стиле .bat (/launcher)
 │   ├── app.js         # общий JS (API, UI, шапка/подвал)
 │   ├── styles.css     # вся стилистика
 │   ├── fonts/         # локальные шрифты
 │   └── images/        # hero + why-*.webp
+├── launcher/          # нативные лаунчеры (Windows WebView2, Linux WebKitGTK)
 └── data/              # SQLite файл (создаётся автоматически)
 ```
 
@@ -81,6 +83,17 @@ SodaDlc/
 | POST | `/api/admin/news` — `{title, body, pinned?}` |
 | DELETE | `/api/admin/news/:id` |
 | GET | `/api/admin/logs` |
+
+---
+
+## Лаунчер
+
+Нативные сборки на WebView с входом по аккаунту сайта, активацией ключей и подпиской из БД:
+
+- **Windows** — C# + WebView2: `launcher/windows/build.ps1`
+- **Linux** — Go + WebKitGTK 4.1: `launcher/linux/build.sh && launcher/linux/run.sh`
+
+Подробности и требования: [`launcher/README.md`](launcher/README.md).
 
 ---
 
