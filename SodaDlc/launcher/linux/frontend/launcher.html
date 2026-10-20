@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Soda Launcher</title>
+  <style>
+    :root {
+      --bg: #0a0c0a;
+      --panel: #12160f;
+      --panel-2: #171c14;
+      --line: #242b21;
+      --line-soft: #1b2018;
+      --text: #f2f6ec;
+      --muted: #9aa392;
+      --muted-2: #6d7666;
+      --accent: #b7ff3c;
+      --accent-strong: #9be619;
+      --accent-soft: rgba(183, 255, 60, 0.12);
+      --danger: #ff5f5f;
+      --danger-soft: rgba(255, 95, 95, 0.12);
+      --warn: #ffc857;
+      --info: #58d5ff;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+      --font-display: "Unbounded", "Chakra Petch", sans-serif;
+      --font-body: "Chakra Petch", "Inter", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(600px 300px at 80% -10%, rgba(183, 255, 60, 0.1), transparent 65%),
+        radial-gradient(400px 250px at 5% 40%, rgba(88, 213, 255, 0.05), transparent 60%);
+      pointer-events: none;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    ::selection { background: var(--accent); color: #0a0c0a; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 480px;
+      width: 100%;
+      margin: 0 auto;
+      background: linear-gradient(180deg, rgba(18,22,15,0.95), rgba(10,12,10,0.98));
+      border-left: 1px solid var(--line-soft);
+      border-right: 1px solid var(--line-soft);
+      position: relative;
+      overflow: hidden;
+    }
+    .app::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.4;
+    }
+
+    .screen { display: none; flex-direction: column; height: 100%; padding: 24px 20px 20px; }
+    .screen.active { display: flex; }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+    .brand img { width: 36px; height: 36px; border-radius: 10px; }
+    .brand em { font-style: normal; color: var(--accent); }
+    .brand-tag { font-size: 11px; color: var(--muted-2); letter-spacing: 0.1em; text-transform: uppercase; margin-top: -4px; }
+
+    .version-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--panel);
+    }
+    .version-badge.new { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+    /* --- Buttons --- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      height: 44px;
+      padding: 0 22px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      background: var(--accent);
+      color: #0c1008;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-strong); }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn.ghost { background: transparent; border-color: var(--line); color: var(--text); }
+    .btn.ghost:hover { border-color: #3a4535; background: var(--panel); }
+    .btn.soft { background: var(--accent-soft); color: var(--accent); border-color: rgba(183,255,60,0.25); }
+    .btn.soft:hover { background: rgba(183,255,60,0.2); }
+    .btn.danger { background: var(--danger-soft); color: var(--danger); border-color: rgba(255,95,95,0.3); }
+    .btn.danger:hover { background: rgba(255,95,95,0.2); }
+    .btn.block { width: 100%; }
+    .btn.sm { height: 36px; padding: 0 14px; font-size: 13px; border-radius: 9px; }
+
+    /* --- Forms --- */
+    .form { display: grid; gap: 14px; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 13px; color: var(--muted); }
+    .input {
+      height: 44px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #0b0e0a;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .input:focus { border-color: rgba(183,255,60,0.55); box-shadow: 0 0 0 3px rgba(183,255,60,0.1); }
+    .input::placeholder { color: var(--muted-2); }
+    textarea.input { height: auto; min-height: 100px; padding: 12px 13px; resize: vertical; }
+
+    .form-error { padding: 10px 13px; border-radius: 9px; background: var(--danger-soft); border: 1px solid rgba(255,95,95,0.3); color: #ffb4b4; font-size: 13px; display: none; }
+    .form-error.show { display: block; }
+    .hint { font-size: 12px; color: var(--muted-2); }
+
+    /* --- Cards --- */
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .card-title { font-family: var(--font-body); font-size: 15px; font-weight: 600; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .pill.pro { color: var(--accent); border-color: rgba(183,255,60,0.35); background: var(--accent-soft); }
+    .pill.premium { color: var(--warn); border-color: rgba(255,200,87,0.35); background: rgba(255,200,87,0.1); }
+    .pill.free { color: var(--muted); }
+    .pill.expired { color: var(--danger); border-color: rgba(255,95,95,0.3); background: var(--danger-soft); }
+    .pill.active { color: var(--accent); border-color: rgba(183,255,60,0.3); }
+
+    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-row span { color: var(--muted); }
+    .info-row strong { font-weight: 600; }
+
+    .progress-bar { height: 6px; border-radius: 999px; background: #0b0e0a; border: 1px solid var(--line-soft); overflow: hidden; margin-top: 10px; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-strong), var(--accent)); border-radius: inherit; transition: width 0.4s ease; }
+
+    .divider { height: 1px; background: var(--line-soft); margin: 16px 0; }
+
+    /* --- Brand switcher --- */
+    .brand-switcher { display: flex; gap: 6px; justify-content: center; margin-top: 16px; }
+    .brand-btn {
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .brand-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .brand-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .brand-btn[data-brand="SodaLegit"].active { border-color: var(--info); color: var(--info); background: rgba(88,213,255,0.12); }
+
+    /* --- Launch button --- */
+    .launch-btn { margin-top: auto; padding: 18px; font-size: 17px; }
+    .launch-btn:disabled { opacity: 0.4; }
+    .launch-btn .spinner { display: none; width: 20px; height: 20px; border: 3px solid transparent; border-top-color: #0c1008; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .launch-btn.loading .spinner { display: block; }
+    .launch-btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* --- Footer --- */
+    .footer { text-align: center; padding-top: 16px; color: var(--muted-2); font-size: 11px; border-top: 1px solid var(--line-soft); margin-top: auto; }
+    .footer a { color: var(--accent); }
+
+    /* --- Toast --- */
+    .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); box-shadow: var(--shadow); font-size: 13px; max-width: 90vw; animation: slideUp 0.25s ease; pointer-events: auto; }
+    .toast.ok { border-color: rgba(183,255,60,0.35); }
+    .toast.err { border-color: rgba(255,95,95,0.4); }
+    .toast.warn { border-color: rgba(255,200,87,0.4); }
+    @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* --- Update modal --- */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,7,5,0.8); backdrop-filter: blur(4px); display: none; place-items: center; padding: 20px; z-index: 200; }
+    .modal-backdrop.show { display: grid; }
+    .modal { width: min(420px, 90%); border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .modal-header { padding: 18px 20px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { font-family: var(--font-body); font-size: 16px; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 16px 20px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 10px; }
+
+    @media (max-width: 480px) {
+      .app { max-width: 100%; height: 100vh; border-left: none; border-right: none; }
+      .screen { padding: 18px 16px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <div class="modal-backdrop" id="updateModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Доступно обновление</h3>
+      </div>
+      <div class="modal-body">
+        <div class="info-row"><span>Текущая версия</span><strong id="modalCurrent">—</strong></div>
+        <div class="info-row"><span>Новая версия</span><strong id="modalNew">—</strong></div>
+        <div class="hint" style="margin-top:12px" id="modalChangelog"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost sm" id="modalLater">Позже</button>
+        <button class="btn sm" id="modalUpdate">Обновить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app" id="app">
+    <!-- SPLASH / LOADING -->
+    <div class="screen active" id="screenSplash">
+      <div class="content" style="align-items:center;justify-content:center;text-align:center">
+        <div class="logo-wrap" style="width:96px;height:96px;margin:0 auto 24px;border-radius:20px;background:linear-gradient(160deg,#0d100d,#141812);border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden">
+          <img id="splashLogo" src="/logo.svg" alt="Soda" width="56" height="56" style="border-radius:12px">
+        </div>
+        <div class="brand-name" id="splashBrand" style="font-family:var(--font-display);font-weight:800;font-size:28px;letter-spacing:-0.02em">Soda<em>Dlc</em></div>
+        <div class="brand-tag" id="splashTag" style="margin-top:4px">Visual Client Loader</div>
+        <div class="progress-bar" style="width:100%;max-width:280px;margin:28px auto 16px"><div class="progress-fill" id="splashProgress" style="width:0%"></div></div>
+        <div class="status" id="splashStatus" style="min-height:20px">Инициализация…</div>
+        <div class="dots" style="display:flex;gap:4px;justify-content:center;margin-top:20px"><div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--line);animation:dotPulse 1.4s ease-in-out infinite both"></div><div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--line);animation:dotPulse 1.4s ease-in-out infinite both;animation-delay:-0.32s"></div><div class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--line);animation:dotPulse 1.4s ease-in-out infinite both;animation-delay:-0.16s"></div></div>
+      </div>
+      <div class="footer">Soda Launcher <span id="splashVersion" class="version-badge">v1.0.0</span></div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="screen" id="screenLogin">
+      <div class="header">
+        <div class="brand"><img src="/logo.svg" alt="Soda" width="36" height="36"><span>Soda<em id="loginBrandEm">Dlc</em></span></div>
+        <span class="version-badge" id="loginVersion">v1.0.0</span>
+      </div>
+      <div class="content" style="justify-content:center">
+        <div style="width:100%;max-width:360px;margin:0 auto">
+          <h2 style="font-size:22px;margin-bottom:4px;text-align:center">Вход в лаунчер</h2>
+          <p style="color:var(--muted);font-size:13px;text-align:center;margin-bottom:24px">Авторизуйтесь для доступа к клиенту</p>
+          <form class="form" id="loginForm">
+            <div class="form-error" id="loginError"></div>
+            <div class="field"><label for="loginUser">Никнейм</label><input class="input" id="loginUser" name="username" autocomplete="username" placeholder="lorezzzz" maxlength="16" required></div>
+            <div class="field"><label for="loginPass">Пароль</label><input class="input" id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+            <button class="btn block" type="submit" id="loginBtn">Войти</button>
+          </form>
+          <div class="divider"></div>
+          <div class="brand-switcher" id="loginBrandSwitcher"></div>
+          <p class="hint" style="text-align:center;margin-top:16px">Нет аккаунта? <a href="/register" target="_blank">Зарегистрироваться на сайте</a></p>
+        </div>
+      </div>
+      <div class="footer">Soda Launcher v1.0.0</div>
+    </div>
+
+    <!-- MAIN (after login) -->
+    <div class="screen" id="screenMain">
+      <div class="header">
+        <div class="brand"><img src="/logo.svg" alt="Soda" width="36" height="36"><span>Soda<em id="mainBrandEm">Dlc</em></span></div>
+        <span class="version-badge" id="mainVersion">v1.0.0</span>
+      </div>
+      <div class="content">
+        <!-- User bar -->
+        <div class="card" style="display:flex;align-items:center;gap:12px;padding:14px">
+          <div class="avatar" id="mainAvatar" style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#58d5ff);display:grid;place-items:center;font-weight:800;font-size:16px;color:#0a0c0a">?</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:15px" id="mainUsername">—</div>
+            <div class="hint" id="mainSubStatus">—</div>
+          </div>
+          <button class="btn ghost sm" id="btnLogout">Выйти</button>
+        </div>
+
+        <!-- Subscription card -->
+        <div class="card" id="subCard">
+          <div class="card-header"><span class="card-title">Подписка</span><span class="pill" id="subPill">Free</span></div>
+          <div class="info-row"><span>Тариф</span><strong id="subPlan">Free</strong></div>
+          <div class="info-row"><span>Действует до</span><strong id="subUntil">бессрочно</strong></div>
+          <div class="info-row"><span>Осталось</span><strong id="subLeft">∞</strong></div>
+          <div class="progress-bar" id="subProgressWrap"><div class="progress-fill" id="subProgress" style="width:100%"></div></div>
+          <div class="hint" style="margin-top:8px" id="subHint">Активируйте ключ для доступа к Pro/Premium</div>
+        </div>
+
+        <!-- Activate key card -->
+        <div class="card" id="keyCard">
+          <div class="card-header"><span class="card-title">Активация ключа</span></div>
+          <form class="form" id="keyForm">
+            <div class="form-error" id="keyError"></div>
+            <div class="field"><label for="keyInput">Ключ</label><input class="input mono" id="keyInput" placeholder="SODA-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="40" style="font-family:var(--font-body);letter-spacing:0.06em;text-transform:uppercase" required></div>
+            <button class="btn block" type="submit" id="keyBtn">Активировать</button>
+          </form>
+        </div>
+
+        <!-- Launch card -->
+        <div class="card" id="launchCard">
+          <div class="card-header"><span class="card-title">Запуск клиента</span></div>
+          <div class="info-row"><span>Статус</span><strong id="launchStatus">Проверка…</strong></div>
+          <div class="info-row"><span>Версия клиента</span><strong id="clientVersion">—</strong></div>
+          <button class="btn block launch-btn" id="btnLaunch" disabled>
+            <span class="spinner"></span>
+            <span class="btn-text">Запустить SodaDlc</span>
+          </button>
+          <div class="hint" style="margin-top:10px;text-align:center" id="launchHint">Войдите и активируйте ключ для запуска</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="brand-switcher" id="mainBrandSwitcher"></div>
+      </div>
+      <div class="footer">
+        <a href="/" target="_blank">Сайт</a> · <a href="/cabinet" target="_blank">Кабинет</a> · <a href="/terms" target="_blank">Соглашение</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============ CONFIG ============
+    const BRANDS = {
+      SodaDlc: { name: "Soda<em>Dlc</em>", tag: "Visual Client Loader", accent: "#b7ff3c", accentStrong: "#9be619", logo: "/logo.svg" },
+      SodaVisuals: { name: "Soda<em>Visuals</em>", tag: "Visual Client", accent: "#b7ff3c", accentStrong: "#9be619", logo: "/logo.svg" },
+      SodaLegit: { name: "Soda<em>Legit</em>", tag: "Legit Client", accent: "#58d5ff", accentStrong: "#3abde8", logo: "/logo.svg" }
+    };
+    const APP_VERSION = "1.0.0";
+    const API_BASE = ""; // same origin
+
+    // ============ STATE ============
+    let currentBrand = "SodaDlc";
+    let sessionToken = null;
+    let userData = null;
+    let launchReady = false;
+
+    // ============ UTILS ============
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+    const show = (el) => el.classList.add("active");
+    const hide = (el) => el.classList.remove("active");
+    const toggle = (el, on) => el.classList.toggle("active", on);
+
+    function toast(msg, type = "ok") {
+      const wrap = $("#toastWrap");
+      const el = document.createElement("div");
+      el.className = `toast ${type}`;
+      el.textContent = msg;
+      wrap.appendChild(el);
+      setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .25s"; setTimeout(() => el.remove(), 260); }, 3500);
+    }
+
+    function showError(el, msg) { el.textContent = msg; el.classList.add("show"); }
+    function hideError(el) { el.classList.remove("show"); }
+
+    function setBrandUI(brandKey) {
+      const b = BRANDS[brandKey];
+      if (!b) return;
+      currentBrand = brandKey;
+      document.documentElement.style.setProperty("--accent", b.accent);
+      document.documentElement.style.setProperty("--accent-strong", b.accentStrong);
+      $$("#splashLogo, #loginBrandEm, #mainBrandEm").forEach(el => {
+        if (el.tagName === "IMG") el.src = b.logo + "?v=" + Date.now();
+        else el.innerHTML = b.name.replace("Soda<em>", "").replace("</em>", "");
+      });
+      $$("#splashBrand, #loginBrandEm, #mainBrandEm").forEach(el => {
+        if (el.id === "splashBrand") el.innerHTML = b.name;
+        else if (el.id === "loginBrandEm") el.innerHTML = b.name.replace("Soda<em>", "").replace("</em>", "");
+        else if (el.id === "mainBrandEm") el.innerHTML = b.name.replace("Soda<em>", "").replace("</em>", "");
+      });
+      $$("#splashTag").forEach(el => el.textContent = b.tag);
+      $$(".version-badge").forEach(el => el.textContent = "v" + APP_VERSION);
+      $$(".brand-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.brand === brandKey));
+    }
+
+    function switchScreen(id) {
+      $$(".screen").forEach(s => hide(s));
+      show($(id));
+    }
+
+    function renderBrandSwitcher(containerId) {
+      const container = $(containerId);
+      container.innerHTML = Object.keys(BRANDS).map(k => `
+        <button class="brand-btn${k === currentBrand ? " active" : ""}" data-brand="${k}">${k}</button>
+      `).join("");
+      container.querySelectorAll(".brand-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          setBrandUI(btn.dataset.brand);
+          checkVersion();
+        });
+      });
+    }
+
+    function formatPlan(plan) { return { free: "Free", pro: "Pro", premium: "Premium" }[plan] || plan; }
+    function daysLeft(ts) { if (!ts) return null; return Math.max(0, Math.ceil((ts - Date.now()) / 864e5)); }
+
+    // ============ API ============
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        method: opts.method || "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json", "Content-Type": "application/json", ...(opts.headers || {}) },
+        body: opts.body ? JSON.stringify(opts.body) : undefined
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function apiLauncher(path, body) {
+      return api("/api/launcher" + path, { method: "POST", body: { ...body, brand: currentBrand, version: APP_VERSION, os: getOS(), arch: getArch() } });
+    }
+
+    function getOS() {
+      const ua = navigator.userAgent;
+      if (ua.includes("Windows")) return "windows";
+      if (ua.includes("Mac")) return "macos";
+      if (ua.includes("Linux")) return "linux";
+      return "unknown";
+    }
+    function getArch() { return navigator.userAgent.includes("x64") || navigator.userAgent.includes("WOW64") ? "x64" : "x86"; }
+
+    // ============ VERSION CHECK ============
+    async function checkVersion() {
+      try {
+        const data = await api(`/api/launcher/version?brand=${encodeURIComponent(currentBrand)}&current=${APP_VERSION}`);
+        $$("#splashVersion, #loginVersion, #mainVersion").forEach(el => el.textContent = "v" + data.version);
+        if (data.needsUpdate) showUpdateModal(data);
+      } catch (e) { console.warn("Version check failed:", e); }
+    }
+
+    function showUpdateModal(data) {
+      $("#modalCurrent").textContent = APP_VERSION;
+      $("#modalNew").textContent = data.version;
+      $("#modalChangelog").textContent = data.changelog || "—";
+      $("#updateModal").classList.add("show");
+      $("#modalUpdate").onclick = () => { window.open(getDownloadUrl(data), "_blank"); $("#updateModal").classList.remove("show"); };
+      $("#modalLater").onclick = () => $("#updateModal").classList.remove("show");
+    }
+    function getDownloadUrl(data) { const os = getOS(); return os === "windows" ? data.downloadUrlWin : os === "linux" ? data.downloadUrlLinux : data.downloadUrlMac; }
+
+    // ============ AUTH ============
+    async function tryAutoLogin() {
+      // check for existing session via cookie (handled by browser)
+      try {
+        const data = await api("/api/me");
+        userData = data.user;
+        onAuthSuccess(data.user);
+        return true;
+      } catch { return false; }
+    }
+
+    async function doLogin(username, password) {
+      const data = await apiLauncher("/auth", { username, password });
+      sessionToken = data.token;
+      userData = data.user;
+      onAuthSuccess(data.user);
+    }
+
+    function onAuthSuccess(user) {
+      userData = user;
+      updateMainUI();
+      switchScreen("screenMain");
+      logLaunch("auto_login");
+      checkSubscription();
+    }
+
+    function updateMainUI() {
+      if (!userData) return;
+      $("#mainAvatar").textContent = userData.username.slice(0, 2).toUpperCase();
+      $("#mainUsername").textContent = userData.username;
+      const plan = userData.plan || "free";
+      const left = daysLeft(userData.planExpiresAt);
+      const planLabel = formatPlan(plan);
+      $("#subPill").className = "pill " + plan + (userData.planExpiresAt && userData.planExpiresAt < Date.now() && plan !== "free" ? " expired" : "");
+      $("#subPill").textContent = planLabel;
+      $("#subPlan").textContent = planLabel;
+      $("#subUntil").textContent = userData.planExpiresAt ? new Date(userData.planExpiresAt).toLocaleDateString("ru-RU") : "бессрочно";
+      $("#subLeft").textContent = plan === "free" ? "∞" : left + " дн.";
+      const pct = plan === "free" ? 100 : Math.min(100, Math.max(0, (left || 0) / 30 * 100));
+      $("#subProgress").style.width = pct + "%";
+      $("#subHint").textContent = plan === "free" ? "Активируйте ключ для доступа к Pro/Premium" : `Подписка ${planLabel} активна. Активация нового ключа продлит срок.`;
+      checkLaunchAvailability();
+    }
+
+    async function checkSubscription() {
+      try {
+        const data = await api("/api/launcher/status");
+        userData = data.user;
+        updateMainUI();
+      } catch (e) { console.warn("Sub check failed:", e); }
+    }
+
+    async function doLogout() {
+      await api("/api/logout", { method: "POST" });
+      sessionToken = null;
+      userData = null;
+      launchReady = false;
+      switchScreen("screenLogin");
+    }
+
+    // ============ KEY ACTIVATION ============
+    $("#keyForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideError($("#keyError"));
+      const key = $("#keyInput").value.trim();
+      if (!key) return;
+      const btn = $("#keyBtn");
+      btn.disabled = true; btn.textContent = "Активируем…";
+      try {
+        const data = await apiLauncher("/activate", { key });
+        toast("Ключ активирован!", "ok");
+        $("#keyInput").value = "";
+        await checkSubscription();
+      } catch (err) { showError($("#keyError"), err.message); }
+      finally { btn.disabled = false; btn.textContent = "Активировать"; }
+    });
+
+    // ============ LOGIN FORM ============
+    $("#loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideError($("#loginError"));
+      const user = $("#loginUser").value.trim();
+      const pass = $("#loginPass").value;
+      if (!user || !pass) return;
+      const btn = $("#loginBtn");
+      btn.disabled = true; btn.textContent = "Входим…";
+      try { await doLogin(user, pass); }
+      catch (err) { showError($("#loginError"), err.message); }
+      finally { btn.disabled = false; btn.textContent = "Войти"; }
+    });
+
+    // ============ LAUNCH ============
+    async function checkLaunchAvailability() {
+      try {
+        const data = await api("/api/launcher/status");
+        const can = data.canLaunch;
+        launchReady = can;
+        $("#btnLaunch").disabled = !can;
+        $("#launchStatus").textContent = can ? "Готов к запуску" : "Нет активной подписки";
+        $("#launchStatus").style.color = can ? "var(--accent)" : "var(--danger)";
+        $("#launchHint").textContent = can ? "Нажмите для запуска клиента" : "Требуется активная подписка Pro или Premium";
+        $("#clientVersion").textContent = data.user.plan !== "free" ? "v" + APP_VERSION : "—";
+      } catch (e) { console.warn("Launch check failed:", e); }
+    }
+
+    $("#btnLaunch").addEventListener("click", async () => {
+      if (!launchReady) return;
+      const btn = $("#btnLaunch");
+      btn.classList.add("loading"); btn.disabled = true;
+      try {
+        await apiLauncher("/log", { action: "launch", details: "User clicked launch" });
+        toast("Запуск клиента…", "ok");
+        // Here you'd trigger actual client launch via native bridge
+        // window.external.launch() or similar
+        setTimeout(() => { btn.classList.remove("loading"); btn.disabled = false; }, 2000);
+      } catch (e) { toast(e.message, "err"); btn.classList.remove("loading"); btn.disabled = false; }
+    });
+
+    // ============ SPLASH SIMULATION ============
+    async function runSplash() {
+      const steps = [
+        { p: 15, t: "Проверка обновлений…" },
+        { p: 35, t: "Загрузка конфигурации…" },
+        { p: 55, t: "Проверка сессии…" },
+        { p: 75, t: "Подключение к API…" },
+        { p: 90, t: "Почти готово…" },
+        { p: 100, t: "Готово" }
+      ];
+      for (const s of steps) {
+        $("#splashProgress").style.width = s.p + "%";
+        $("#splashStatus").textContent = s.t;
+        await new Promise(r => setTimeout(r, 200 + Math.random() * 150));
+      }
+      await new Promise(r => setTimeout(r, 300));
+      const loggedIn = await tryAutoLogin();
+      if (!loggedIn) switchScreen("screenLogin");
+    }
+
+    // ============ INIT ============
+    async function init() {
+      setBrandUI(currentBrand);
+      renderBrandSwitcher("loginBrandSwitcher");
+      renderBrandSwitcher("mainBrandSwitcher");
+      await checkVersion();
+      await runSplash();
+
+      $("#btnLogout").addEventListener("click", doLogout);
+    }
+
+    // Expose for native bridge
+    window.LauncherAPI = {
+      login: (user, pass) => doLogin(user, pass),
+      activateKey: (key) => apiLauncher("/activate", { key }),
+      getStatus: () => api("/api/launcher/status"),
+      launch: () => $("#btnLaunch").click(),
+      setBrand: setBrandUI,
+      getBrand: () => currentBrand,
+      onReady: (cb) => { if (launchReady) cb(); else { const iv = setInterval(() => { if (launchReady) { clearInterval(iv); cb(); } }, 100); } }
+    };
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>

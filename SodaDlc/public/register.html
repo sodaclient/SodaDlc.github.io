@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Регистрация — SodaDlc</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Создать аккаунт</h1>
+      <p>Бесплатная регистрация. Ключ можно активировать сразу после входа.</p>
+      <form class="auth-form" id="registerForm" novalidate>
+        <div class="form-error hidden" id="registerError"></div>
+        <div class="field">
+          <label for="username">Ник</label>
+          <input class="input" id="username" name="username" autocomplete="username" placeholder="soda_player" maxlength="16" required />
+          <div class="hint" style="margin-top:6px">3–16 символов: латиница, цифры и _</div>
+        </div>
+        <div class="field">
+          <label for="email">Email <span class="muted">(необязательно)</span></label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <label for="password">Пароль</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="new-password" placeholder="Минимум 6 символов" required />
+        </div>
+        <div class="field">
+          <label for="password2">Повтори пароль</label>
+          <input class="input" id="password2" name="password2" type="password" autocomplete="new-password" placeholder="••••••••" required />
+        </div>
+        <button class="btn block" type="submit" id="registerBtn">Зарегистрироваться</button>
+      </form>
+      <div class="auth-alt">Уже есть аккаунт? <a href="/login">Войти</a></div>
+    </div>
+  </div>
+  <div id="site-footer"></div>
+  <script src="/app.js"></script>
+  <script>
+    (async () => {
+      const user = await SODA.me().catch(() => null);
+      if (user) location.replace("/cabinet");
+
+      const form = document.getElementById("registerForm");
+      const errorBox = document.getElementById("registerError");
+      const button = document.getElementById("registerBtn");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorBox.classList.add("hidden");
+        const username = document.getElementById("username").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const password2 = document.getElementById("password2").value;
+
+        if (password !== password2) {
+          errorBox.textContent = "Пароли не совпадают";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Создаём…";
+        try {
+          await SODA.api("/api/register", {
+            method: "POST",
+            body: { username, email: email || undefined, password },
+          });
+          location.href = "/cabinet";
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+          button.disabled = false;
+          button.textContent = "Зарегистрироваться";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "sodadlc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SodaDlc — рабочий сайт с личным кабинетом, ключами и админ-панелью",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server.js",
+    "dev": "node --experimental-sqlite server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}
