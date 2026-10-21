@@ -106,7 +106,7 @@ SodaDlc/
    - **Start Command**: `node --experimental-sqlite server.js`
    - **Environment**: Node 24
    - Добавьте переменную `ADMIN_PASSWORD` (сгенерируется случайная при первом деплое).
-4. Получите ссылку вида `https://sodadlc.onrender.com`.
+4. Сайт будет доступен по адресу `https://sodaclient-github-io.onrender.com`.
 
 > ⚠️ На бесплатном плане диск **эфемерный** — при перезапуске/деплое база сбрасывается. Для постоянства нужен платный диск или внешняя БД (Turso, Neon, Supabase — у всех есть free tier).
 
