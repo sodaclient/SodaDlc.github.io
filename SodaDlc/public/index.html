@@ -11,7 +11,7 @@
   <meta property="og:image" content="/logo.svg" />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css?v=7" />
+  <link rel="stylesheet" href="/styles.css?v=8" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -54,50 +54,47 @@
 
     <section class="section" id="products">
       <div class="container">
-        <div class="section-head">
-          <div>
-            <div class="eyebrow">Продукты</div>
-            <h2>Выбери свой продукт</h2>
-            <p>Бесплатного доступа нет: все продукты подключаются ключом, который активируется в личном кабинете.</p>
-          </div>
-        </div>
         <div class="cards-3">
-          <article class="plan visuals">
+          <article class="plan visuals" data-product="SodaVisuals">
             <span class="plan-tag">Visuals</span>
             <h3>SodaVisuals</h3>
             <p>Только визуалы, без комбат-функций. Не запрещены нигде — безопасны на любых серверах.</p>
-            <ul>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Только визуальные функции</li>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Без комбата и аима</li>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Разрешены везде</li>
-            </ul>
-            <a class="btn ghost" href="/register">Купить ключ</a>
+            <div class="price">149 ₽ <small>/ месяц</small></div>
+            <div class="periods" role="group" aria-label="Срок покупки SodaVisuals">
+              <button type="button" class="period active" data-price="149" data-suffix="/ месяц">Месяц</button>
+              <button type="button" class="period" data-price="1290" data-suffix="/ год">Год</button>
+              <button type="button" class="period" data-price="2490" data-suffix="навсегда">Навсегда</button>
+            </div>
+            <button type="button" class="btn ghost" data-buy>Купить</button>
           </article>
 
-          <article class="plan legit popular">
+          <article class="plan legit popular" data-product="SodaDlc Legit">
             <span class="plan-tag">Stealth</span>
             <h3>SodaDlc <em>Legit</em></h3>
-            <p>Для скрытной игры и обхода проверок: минимальный след, аккуратная картинка и стабильность в долгих сессиях.</p>
-            <ul>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Скрытная игра</li>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Обход проверок</li>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Минимальный след</li>
-            </ul>
-            <a class="btn" href="/register">Купить ключ</a>
+            <p>Для скрытной игры и обхода проверок: минимальный след, аккуратная картинка и стабильность.</p>
+            <div class="price">299 ₽ <small>/ месяц</small></div>
+            <div class="periods" role="group" aria-label="Срок покупки SodaDlc Legit">
+              <button type="button" class="period active" data-price="299" data-suffix="/ месяц">Месяц</button>
+              <button type="button" class="period" data-price="2490" data-suffix="/ год">Год</button>
+              <button type="button" class="period" data-price="4990" data-suffix="навсегда">Навсегда</button>
+            </div>
+            <button type="button" class="btn" data-buy>Купить</button>
           </article>
 
-          <article class="plan rage">
+          <article class="plan rage" data-product="SodaDlc Rage">
             <span class="plan-tag">Combat</span>
             <h3>SodaDlc <em>Rage</em></h3>
             <p>Максимальная боевая мощь и полный набор функций для агрессивной игры без компромиссов.</p>
-            <ul>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Боевые функции</li>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Максимальная мощь</li>
-              <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m20 6-11 11-5-5"/></svg> Полный набор</li>
-            </ul>
-            <a class="btn ghost" href="/register">Купить ключ</a>
+            <div class="price">499 ₽ <small>/ месяц</small></div>
+            <div class="periods" role="group" aria-label="Срок покупки SodaDlc Rage">
+              <button type="button" class="period active" data-price="499" data-suffix="/ месяц">Месяц</button>
+              <button type="button" class="period" data-price="3990" data-suffix="/ год">Год</button>
+              <button type="button" class="period" data-price="7990" data-suffix="навсегда">Навсегда</button>
+            </div>
+            <button type="button" class="btn ghost" data-buy>Купить</button>
           </article>
         </div>
+        <div class="buy-stub">Оплата и автоматическая выдача ключей скоро. Пока это заглушка.</div>
       </div>
     </section>
 
@@ -268,6 +265,29 @@
       kk.classList.add("jump");
       clearTimeout(timer);
       timer = setTimeout(() => kk.classList.remove("jump"), 1050);
+    });
+  })();
+</script>
+<script>
+  (() => {
+    document.querySelectorAll(".plan[data-product]").forEach((card) => {
+      const out = card.querySelector(".price");
+      card.querySelectorAll(".period").forEach((btn) => {
+        btn.setAttribute("aria-pressed", btn.classList.contains("active") ? "true" : "false");
+        btn.addEventListener("click", () => {
+          card.querySelectorAll(".period").forEach((b) => {
+            b.classList.toggle("active", b === btn);
+            b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+          });
+          out.innerHTML = btn.dataset.price + " ₽ <small>" + btn.dataset.suffix + "</small>";
+        });
+      });
+      const buy = card.querySelector("[data-buy]");
+      if (buy) {
+        buy.addEventListener("click", () => {
+          SODA.toast(card.dataset.product + ": оплата скоро — заглушка");
+        });
+      }
     });
   })();
 </script>
