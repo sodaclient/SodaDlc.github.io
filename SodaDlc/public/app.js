@@ -133,7 +133,6 @@ const SODA = (() => {
     const path = location.pathname;
     const links = [
       { href: "/", label: "Главная" },
-      { href: "/#products", label: "Продукты" },
       { href: "/#pricing", label: "Тарифы" },
       { href: "/#features", label: "Возможности" },
       { href: "/news", label: "Новости" },
@@ -180,12 +179,11 @@ const SODA = (() => {
                 <img src="/logo.svg" alt="SodaDlc" width="36" height="36" />
                 <span>Soda<em>Dlc</em></span>
               </a>
-              <p class="muted small" style="margin-top:14px;max-width:280px">Платформа SodaDlc: три продукта — Legit, Rage и Visuals — аккаунты, подписки и ключи в одном месте.</p>
+              <p class="muted small" style="margin-top:14px;max-width:280px">Рабочая платформа визуального клиента: аккаунты, подписки, ключи и админ-панель в одном месте.</p>
             </div>
             <div>
               <h4>Разделы</h4>
               <a href="/">Главная</a>
-              <a href="/#products">Продукты</a>
               <a href="/#pricing">Тарифы</a>
               <a href="/#features">Возможности</a>
               <a href="/news">Новости</a>
