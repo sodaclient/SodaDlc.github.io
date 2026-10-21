@@ -64,9 +64,10 @@ cat << EOF
 3. Выбери "Build and deploy from a Git repository"
 4. Подключи GitHub → выбери репозиторий: $GITHUB_USER/$REPO_NAME
 5. Render сам определит render.yaml:
-   - Build Command: (пусто)
-   - Start Command: node --experimental-sqlite server.js
+   - Build Command: npm ci
+   - Start Command: node server.js
    - Environment: Node
+   - Env Var: DATABASE_URL = строка подключения PostgreSQL
 6. Нажми "Create Web Service"
 
 === ГОТОВО ===
