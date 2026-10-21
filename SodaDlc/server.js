@@ -16,6 +16,7 @@ const ADMIN_NAMES = ["lorezzzz", "zirassov"];
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "soda12345";
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const PLANS = ["free", "pro", "premium"];
+const CLICKER_KEY_COST = 1e12;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -109,6 +110,14 @@ db.exec(`
     ip TEXT,
     user_agent TEXT,
     created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS clicker_progress (
+    user_id INTEGER PRIMARY KEY,
+    total INTEGER NOT NULL DEFAULT 0,
+    claimed INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
 
@@ -242,6 +251,7 @@ const PAGES = {
   "/cabinet": "cabinet.html",
   "/admin": "admin.html",
   "/news": "news.html",
+  "/clicker": "clicker.html",
   "/terms": "terms.html",
   "/privacy": "privacy.html",
   "/zapret": "zapret.html",
@@ -547,6 +557,48 @@ async function handleApi(req, res, url) {
     const applied = applyPlan(user.id, row.plan, row.duration_days);
     log(user, "key", `Активирован ключ ${key} (${row.plan}, ${row.duration_days} дн.)`, clientIp(req));
     return json(res, 200, { ok: true, subscription: applied });
+  }
+
+  if (route === "/api/clicker/status" && method === "GET") {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const row = db.prepare("SELECT total, claimed FROM clicker_progress WHERE user_id = ?").get(user.id);
+    return json(res, 200, {
+      total: row ? row.total : 0,
+      claimed: row ? row.claimed : 0,
+      cost: CLICKER_KEY_COST,
+    });
+  }
+
+  if (route === "/api/clicker/redeem" && method === "POST") {
+    const user = requireUser(req, res);
+    if (!user) return;
+    if (!rateLimit(req, res, "clicker", 6)) return;
+    const body = await readBody(req);
+    const reported = Math.floor(Number(body.total));
+    if (!Number.isFinite(reported) || reported < 0) {
+      return json(res, 400, { error: "Некорректный прогресс" });
+    }
+    const total = Math.min(reported, Number.MAX_SAFE_INTEGER);
+    const prev = db.prepare("SELECT * FROM clicker_progress WHERE user_id = ?").get(user.id);
+    const best = Math.max(total, prev ? prev.total : 0);
+    const claimed = prev ? prev.claimed : 0;
+    if (best - claimed * CLICKER_KEY_COST < CLICKER_KEY_COST) {
+      return json(res, 400, { error: "Нужно 1 000 000 000 000 кликов" });
+    }
+    let key;
+    do {
+      key = genKey();
+    } while (db.prepare("SELECT id FROM license_keys WHERE key = ?").get(key));
+    db.prepare(
+      "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, 'premium', 7, ?, ?)"
+    ).run(key, user.id, now());
+    db.prepare(
+      `INSERT INTO clicker_progress (user_id, total, claimed, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET total = excluded.total, claimed = excluded.claimed, updated_at = excluded.updated_at`
+    ).run(user.id, best, claimed + 1, now());
+    log(user, "clicker", `Ключ за 1 трлн кликов: ${key}`, clientIp(req));
+    return json(res, 201, { key, plan: "premium", days: 7, claimed: claimed + 1, total: best });
   }
 
   if (route === "/api/news" && method === "GET") {

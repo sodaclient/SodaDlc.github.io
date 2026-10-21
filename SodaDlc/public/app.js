@@ -136,6 +136,7 @@ const SODA = (() => {
       { href: "/#products", label: "Продукты" },
       { href: "/#features", label: "Возможности" },
       { href: "/news", label: "Новости" },
+      { href: "/clicker", label: "Кликер" },
     ];
     const active = (href) => (href === "/" ? path === "/" : path === href ? "active" : "");
     host.innerHTML = `
@@ -187,6 +188,7 @@ const SODA = (() => {
               <a href="/#products">Продукты</a>
               <a href="/#features">Возможности</a>
               <a href="/news">Новости</a>
+              <a href="/clicker">Кликер</a>
             </div>
             <div>
               <h4>Аккаунт</h4>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Кликер — SodaDlc</title>
+  <meta name="description" content="Кликер SodaDlc: тапай стикер, качай силу, перерождайся и обменяй 1 трлн кликов на ключ на 7 дней." />
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/styles.css?v=11" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <main class="ck-page">
+    <div class="container">
+      <div class="ck-head">
+        <div class="eyebrow">Мини-игра</div>
+        <h1>Кликер <em>SodaDlc</em></h1>
+        <p class="lead">Тапай стикер, качай силу и энергию, перерождайся. За 1 трлн кликов можно обменять прогресс на настоящий ключ на 7 дней.</p>
+      </div>
+
+      <div class="ck-grid">
+        <div class="ck-stage" id="ckStage">
+          <button class="ck-sticker" id="ckSticker" type="button" aria-label="Кликать по стикеру">
+            <img src="/images/sticker.webp" alt="Стикер SodaDlc" draggable="false" />
+          </button>
+          <div class="ck-float-layer" id="ckFloats" aria-hidden="true"></div>
+
+          <div class="ck-energy">
+            <div class="ck-energy-top">
+              <span>Энергия</span>
+              <span id="ckEnergyText">100 / 100</span>
+            </div>
+            <div class="ck-energy-bar"><span id="ckEnergyFill"></span></div>
+            <div class="ck-energy-hint" id="ckRegenText">+3 в секунду</div>
+          </div>
+        </div>
+
+        <aside class="ck-side">
+          <div class="ck-stats">
+            <div class="ck-stat"><span>Баланс</span><b id="ckBalance">0</b></div>
+            <div class="ck-stat"><span>Всего кликов</span><b id="ckTotal">0</b></div>
+            <div class="ck-stat"><span>В секунду</span><b id="ckCps">0</b></div>
+            <div class="ck-stat"><span>Множитель</span><b id="ckMult">×1</b></div>
+          </div>
+
+          <div class="ck-power">
+            <span>Сила клика</span>
+            <b id="ckPower">1</b>
+          </div>
+
+          <div class="ck-key">
+            <div class="ck-key-head">
+              <span>Ключ на 7 дней</span>
+              <b id="ckKeyProgress">0%</b>
+            </div>
+            <div class="ck-key-bar"><span id="ckKeyFill"></span></div>
+            <div class="ck-key-note">
+              <span id="ckKeyText">0 / 1 трлн</span>
+              <span>за 1 трлн кликов</span>
+            </div>
+            <button class="btn block" type="button" id="ckKeyBtn" disabled>Обменять на ключ</button>
+            <div class="ck-key-result hidden" id="ckKeyResult">
+              <div>Твой ключ:</div>
+              <code id="ckKeyValue"></code>
+              <button class="btn ghost sm" type="button" id="ckCopyKey">Скопировать</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <section class="ck-block">
+        <div class="ck-block-head">
+          <div>
+            <h2>Прокачка</h2>
+            <p>Улучшения покупаются из баланса. Цена растёт с каждым уровнем.</p>
+          </div>
+          <span class="ck-hint">Клик = 1 энергия</span>
+        </div>
+        <div class="ck-upgrade-grid" id="ckUpgrades"></div>
+      </section>
+
+      <section class="ck-rebirth">
+        <div class="ck-rebirth-copy">
+          <div class="eyebrow">Перерождение</div>
+          <h2>Начни заново — стань сильнее</h2>
+          <p id="ckRebirthText">Сбросит баланс, энергию и прокачку, но даст +25% к силе навсегда. Всего кликов и купленные ключи не сбрасываются.</p>
+        </div>
+        <div class="ck-rebirth-side">
+          <div class="ck-rebirth-stat"><b id="ckRebirths">0</b><span>перерождений</span></div>
+          <div class="ck-rebirth-stat"><b id="ckRebirthMult">×1</b><span>к силе</span></div>
+          <button class="btn ghost" type="button" id="ckRebirthBtn" disabled>Переродиться</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="site-footer"></div>
+  <script src="/app.js?v=5"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const SAVE_KEY = "soda_clicker_v1";
+      const KEY_COST = 1e12;
+      const $ = (id) => document.getElementById(id);
+
+      const UPGRADES = [
+        {
+          id: "power", name: "Сила клика", desc: "+1 к силе за уровень", base: 15, growth: 1.55,
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 9h7l-9 11 2-9H4z"/></svg>',
+        },
+        {
+          id: "energy", name: "Макс. энергия", desc: "+20 к запасу, сразу +20", base: 40, growth: 1.6,
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="15" height="10" rx="2"/><path d="M21 10v4"/></svg>',
+        },
+        {
+          id: "regen", name: "Регенерация", desc: "+1 энергии в секунду", base: 80, growth: 1.7,
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+        },
+        {
+          id: "auto", name: "Автоклик", desc: "+0.5 клика в секунду (зависит от силы)", base: 150, growth: 1.65,
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+        },
+        {
+          id: "crit", name: "Крит", desc: "+4% шанс крита ×10", base: 250, growth: 1.9, cap: 12,
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
+        },
+      ];
+
+      const defaults = {
+        balance: 0, total: 0, run: 0, rebirths: 0, energy: 100, keySpent: 0,
+        lastTick: Date.now(), upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
+      };
+
+      function load() {
+        try {
+          const raw = localStorage.getItem(SAVE_KEY);
+          const saved = raw ? JSON.parse(raw) : {};
+          const upgrades = { ...defaults.upgrades, ...(saved.upgrades || {}) };
+          const state = { ...defaults, ...saved, upgrades };
+          for (const k of ["balance", "total", "run", "energy", "keySpent"]) {
+            if (!Number.isFinite(Number(state[k])) || Number(state[k]) < 0) state[k] = defaults[k];
+            else state[k] = Number(state[k]);
+          }
+          state.rebirths = Math.max(0, Math.floor(Number(state.rebirths) || 0));
+          for (const k of Object.keys(upgrades)) {
+            upgrades[k] = Math.max(0, Math.floor(Number(upgrades[k]) || 0));
+          }
+          return state;
+        } catch {
+          return { ...defaults, upgrades: { ...defaults.upgrades } };
+        }
+      }
+
+      const state = load();
+      let last = Date.now();
+      let lastSave = Date.now();
+      let claiming = false;
+
+      function save() {
+        state.lastTick = Date.now();
+        try {
+          localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+        } catch {}
+      }
+
+      function mult() {
+        return 1 + state.rebirths * 0.25;
+      }
+      function maxEnergy() {
+        return 100 + state.upgrades.energy * 20;
+      }
+      function regen() {
+        return 3 + state.upgrades.regen;
+      }
+      function clickPower() {
+        return (1 + state.upgrades.power) * mult();
+      }
+      function autoCps() {
+        return state.upgrades.auto * clickPower() * 0.5;
+      }
+      function critChance() {
+        return Math.min(0.5, state.upgrades.crit * 0.04);
+      }
+      function rebirthNeed() {
+        return Math.floor(5000 * Math.pow(6, state.rebirths));
+      }
+      function upCost(u) {
+        return Math.floor(u.base * Math.pow(u.growth, state.upgrades[u.id]));
+      }
+
+      const nf = new Intl.NumberFormat("ru-RU");
+      const full = (n) => nf.format(Math.floor(n));
+      function fmt(n) {
+        n = Math.floor(n);
+        if (n >= 1e12) return parseFloat((n / 1e12).toFixed(2)) + " трлн";
+        if (n >= 1e9) return parseFloat((n / 1e9).toFixed(2)) + " млрд";
+        if (n >= 1e6) return parseFloat((n / 1e6).toFixed(2)) + " млн";
+        if (n >= 1e3) return parseFloat((n / 1e3).toFixed(1)) + " тыс";
+        return String(n);
+      }
+
+      function addGain(value) {
+        const cap = Number.MAX_SAFE_INTEGER;
+        state.balance = Math.min(cap, state.balance + value);
+        state.total = Math.min(cap, state.total + value);
+        state.run = Math.min(cap, state.run + value);
+      }
+
+      const stage = $("ckStage");
+      const sticker = $("ckSticker");
+      const floats = $("ckFloats");
+      const upgradesEl = $("ckUpgrades");
+
+      function spawnFloat(event, value, crit) {
+        const rect = stage.getBoundingClientRect();
+        const hasPointer = event && event.detail !== 0 && event.clientX && event.clientY;
+        const x = hasPointer ? event.clientX - rect.left : rect.width / 2;
+        const y = hasPointer ? event.clientY - rect.top : rect.height * 0.38;
+        const el = document.createElement("span");
+        el.className = "ck-float" + (crit ? " crit" : "");
+        el.textContent = (crit ? "КРИТ +" : "+") + fmt(value);
+        el.style.left = x + "px";
+        el.style.top = y + "px";
+        floats.appendChild(el);
+        setTimeout(() => el.remove(), 850);
+      }
+
+      function renderUpgrades() {
+        upgradesEl.innerHTML = UPGRADES.map((u) => {
+          const lvl = state.upgrades[u.id];
+          const capped = u.cap && lvl >= u.cap;
+          return `<article class="ck-up">
+            <div class="ck-up-icon">${u.icon}</div>
+            <div class="ck-up-body">
+              <div class="ck-up-top"><h3>${u.name}</h3><span class="ck-up-lvl">ур. ${lvl}</span></div>
+              <p>${u.desc}</p>
+              <button class="btn ghost sm" type="button" data-buy="${u.id}">
+                ${capped ? "Максимум" : "Улучшить · " + fmt(upCost(u))}
+              </button>
+            </div>
+          </article>`;
+        }).join("");
+      }
+
+      function syncUpgradeButtons() {
+        upgradesEl.querySelectorAll("[data-buy]").forEach((btn) => {
+          const u = UPGRADES.find((x) => x.id === btn.dataset.buy);
+          if (!u) return;
+          const capped = u.cap && state.upgrades[u.id] >= u.cap;
+          btn.disabled = Boolean(capped) || state.balance < upCost(u);
+        });
+      }
+
+      function render() {
+        const me = maxEnergy();
+        if (state.energy > me) state.energy = me;
+        $("ckBalance").textContent = fmt(state.balance);
+        $("ckTotal").textContent = fmt(state.total);
+        $("ckCps").textContent = fmt(autoCps());
+        $("ckMult").textContent = "×" + mult().toFixed(2).replace(/\.?0+$/, "");
+        $("ckPower").textContent = fmt(clickPower());
+
+        const energy = Math.floor(state.energy);
+        $("ckEnergyText").textContent = energy + " / " + me;
+        $("ckEnergyFill").style.width = Math.max(0, Math.min(100, (state.energy / me) * 100)) + "%";
+        $("ckEnergyFill").classList.toggle("low", state.energy < me * 0.2);
+        $("ckRegenText").textContent = "+" + regen() + " в секунду";
+
+        const rem = Math.max(0, state.total - state.keySpent);
+        const pct = Math.min(100, (rem / KEY_COST) * 100);
+        $("ckKeyFill").style.width = pct + "%";
+        $("ckKeyProgress").textContent = pct >= 100 ? "100%" : pct.toFixed(1) + "%";
+        $("ckKeyText").textContent = fmt(rem) + " / 1 трлн";
+        const keyBtn = $("ckKeyBtn");
+        keyBtn.disabled = claiming || rem < KEY_COST;
+        keyBtn.textContent = claiming ? "Получаем ключ…" : "Обменять на ключ";
+        keyBtn.title = rem < KEY_COST ? "Нужно накопить 1 000 000 000 000 кликов" : "";
+
+        const need = rebirthNeed();
+        const canRebirth = state.run >= need;
+        $("ckRebirths").textContent = state.rebirths;
+        $("ckRebirthMult").textContent = "×" + mult().toFixed(2).replace(/\.?0+$/, "");
+        $("ckRebirthText").textContent =
+          "Сбросит баланс, энергию и прокачку, но даст +25% к силе навсегда. " +
+          (canRebirth
+            ? "Условие выполнено — можно перерождаться."
+            : "За этот забег нужно " + fmt(need) + " кликов, сейчас " + fmt(state.run) + ".");
+        const rbBtn = $("ckRebirthBtn");
+        rbBtn.disabled = !canRebirth;
+        rbBtn.textContent = canRebirth ? "Переродиться" : "Нужно " + fmt(need);
+
+        syncUpgradeButtons();
+      }
+
+      function tick() {
+        const t = Date.now();
+        const dt = Math.min((t - last) / 1000, 2);
+        last = t;
+        state.energy = Math.min(maxEnergy(), state.energy + regen() * dt);
+        const gained = autoCps() * dt;
+        if (gained > 0) addGain(gained);
+        render();
+        if (t - lastSave > 900) {
+          lastSave = t;
+          save();
+        }
+      }
+
+      function clickSticker(event) {
+        if (state.energy < 1) {
+          stage.classList.remove("noenergy");
+          void stage.offsetWidth;
+          stage.classList.add("noenergy");
+          setTimeout(() => stage.classList.remove("noenergy"), 260);
+          return;
+        }
+        state.energy -= 1;
+        const crit = Math.random() < critChance();
+        const gain = clickPower() * (crit ? 10 : 1);
+        addGain(gain);
+        sticker.classList.remove("hit");
+        void sticker.offsetWidth;
+        sticker.classList.add("hit");
+        setTimeout(() => sticker.classList.remove("hit"), 130);
+        spawnFloat(event, gain, crit);
+        render();
+      }
+
+      sticker.addEventListener("click", clickSticker);
+
+      upgradesEl.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-buy]");
+        if (!btn) return;
+        const u = UPGRADES.find((x) => x.id === btn.dataset.buy);
+        if (!u) return;
+        if (u.cap && state.upgrades[u.id] >= u.cap) return;
+        const cost = upCost(u);
+        if (state.balance < cost) {
+          SODA.toast("Не хватает кликов", "err");
+          return;
+        }
+        state.balance -= cost;
+        state.upgrades[u.id] += 1;
+        if (u.id === "energy") state.energy = Math.min(maxEnergy(), state.energy + 20);
+        renderUpgrades();
+        render();
+        save();
+      });
+
+      $("ckRebirthBtn").addEventListener("click", () => {
+        const need = rebirthNeed();
+        if (state.run < need) return;
+        state.rebirths += 1;
+        state.balance = 0;
+        state.run = 0;
+        state.upgrades = { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 };
+        state.energy = maxEnergy();
+        renderUpgrades();
+        render();
+        save();
+        SODA.toast("Перерождение! Множитель ×" + mult().toFixed(2).replace(/\.?0+$/, ""));
+      });
+
+      $("ckKeyBtn").addEventListener("click", async () => {
+        if (claiming || state.total - state.keySpent < KEY_COST) return;
+        claiming = true;
+        render();
+        try {
+          const data = await SODA.api("/api/clicker/redeem", {
+            method: "POST",
+            body: { total: state.total },
+          });
+          state.keySpent = (data.claimed || 1) * KEY_COST;
+          save();
+          $("ckKeyValue").textContent = data.key;
+          $("ckKeyResult").classList.remove("hidden");
+          SODA.toast("Ключ на 7 дней получен");
+        } catch (err) {
+          if (err.status === 401) {
+            SODA.toast("Войди в аккаунт, чтобы забрать ключ", "err");
+            setTimeout(() => (location.href = "/login?next=/clicker"), 900);
+          } else {
+            SODA.toast(err.message, "err");
+          }
+        } finally {
+          claiming = false;
+          render();
+        }
+      });
+
+      $("ckCopyKey").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText($("ckKeyValue").textContent);
+          SODA.toast("Ключ скопирован");
+        } catch {
+          SODA.toast("Не удалось скопировать", "err");
+        }
+      });
+
+      window.addEventListener("beforeunload", save);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) save();
+      });
+
+      const away = Math.min(Math.max((Date.now() - state.lastTick) / 1000, 0), 8 * 3600);
+      if (away > 5) {
+        state.energy = Math.min(maxEnergy(), state.energy + regen() * away);
+        const offline = autoCps() * away;
+        if (offline > 0) addGain(offline);
+      }
+      state.lastTick = Date.now();
+
+      renderUpgrades();
+      render();
+      setInterval(tick, 200);
+
+      (async () => {
+        try {
+          const data = await SODA.api("/api/clicker/status");
+          if (!data) return;
+          if (Number(data.total) > state.total) state.total = Number(data.total);
+          state.keySpent = Math.max(state.keySpent, (Number(data.claimed) || 0) * KEY_COST);
+          render();
+        } catch {}
+      })();
+    })();
+  </script>
+</body>
+</html>
