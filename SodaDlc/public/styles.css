@@ -492,3 +492,24 @@ tbody tr:last-child td { border-bottom: 0; }
   opacity: 1;
   transform: translate(-50%, -100%) scale(1);
 }
+
+/* products: larger cards */
+#products .container { width: min(1320px, calc(100% - 40px)); }
+#products .cards-3 { gap: 24px; }
+#products .plan { min-height: 400px; padding: 36px 32px; border-radius: 18px; }
+#products .plan h3 { font-size: 28px; }
+#products .plan > p { font-size: 15.5px; line-height: 1.6; min-height: 76px; }
+#products .plan .price { margin: 26px 0 16px; font-size: 48px; }
+#products .plan .price small { font-size: 16px; }
+#products .periods { gap: 8px; margin: 12px 0 22px; }
+#products .period { padding: 12px 6px; font-size: 13.5px; border-radius: 11px; }
+#products .plan .btn { width: 100%; justify-content: center; padding: 15px 20px; font-size: 15px; }
+#products .buy-stub { margin-top: 24px; padding: 22px; font-size: 14px; }
+
+@media (max-width: 640px) {
+  #products .container { width: calc(100% - 28px); }
+  #products .plan { min-height: 0; padding: 28px 22px; }
+  #products .plan h3 { font-size: 24px; }
+  #products .plan .price { font-size: 40px; }
+  #products .period { font-size: 12px; padding: 10px 3px; }
+}
