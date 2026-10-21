@@ -5,11 +5,16 @@
   "description": "SodaDlc — рабочий сайт с личным кабинетом, ключами и админ-панелью",
   "main": "server.js",
   "scripts": {
-    "start": "node --experimental-sqlite server.js",
-    "dev": "node --experimental-sqlite server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "db:migrate": "node --experimental-sqlite scripts/migrate-sqlite.js"
   },
   "engines": {
     "node": ">=22.5.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "pg": "^8.23.1"
+  }
 }

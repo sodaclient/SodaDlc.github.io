@@ -22,7 +22,7 @@ case "$cmd" in
       exit 0
     fi
     echo "▶ Запуск сервера на порту $PORT..."
-    node --experimental-sqlite server.js > "$LOG_FILE" 2>&1 &
+    node server.js > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     sleep 2
     if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then

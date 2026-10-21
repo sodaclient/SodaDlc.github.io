@@ -4,12 +4,11 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { DatabaseSync } = require("node:sqlite");
+const { initDb, all, get, run } = require("./db");
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
-const DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, "sodadlc.db");
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 const ADMIN_NAMES = ["lorezzzz", "zirassov"];
@@ -19,141 +18,6 @@ const PLANS = ["free", "pro", "premium"];
 const CLICKER_KEY_COST = 1e12;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
-
-const db = new DatabaseSync(DB_PATH);
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
-
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    email TEXT UNIQUE COLLATE NOCASE,
-    password_hash TEXT NOT NULL,
-    password_salt TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user',
-    plan TEXT NOT NULL DEFAULT 'free',
-    plan_expires_at INTEGER,
-    banned INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL,
-    last_login_at INTEGER,
-    avatar TEXT,
-    avatar_updated_at INTEGER
-  );
-
-  CREATE TABLE IF NOT EXISTS sessions (
-    token_hash TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL,
-    ip TEXT,
-    user_agent TEXT,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS license_keys (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key TEXT NOT NULL UNIQUE,
-    plan TEXT NOT NULL,
-    duration_days INTEGER NOT NULL,
-    created_by INTEGER,
-    created_at INTEGER NOT NULL,
-    activated_by INTEGER,
-    activated_at INTEGER,
-    used INTEGER NOT NULL DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS news (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL,
-    author TEXT NOT NULL,
-    pinned INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    username TEXT,
-    action TEXT NOT NULL,
-    details TEXT,
-    ip TEXT,
-    created_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS launcher_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand TEXT NOT NULL,
-    version TEXT NOT NULL,
-    changelog TEXT,
-    download_url_win TEXT,
-    download_url_linux TEXT,
-    download_url_mac TEXT,
-    force_update INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS launcher_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    username TEXT,
-    brand TEXT NOT NULL,
-    version TEXT,
-    os TEXT,
-    arch TEXT,
-    action TEXT NOT NULL,
-    details TEXT,
-    ip TEXT,
-    user_agent TEXT,
-    created_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS clicker_progress (
-    user_id INTEGER PRIMARY KEY,
-    total INTEGER NOT NULL DEFAULT 0,
-    claimed INTEGER NOT NULL DEFAULT 0,
-    balance REAL NOT NULL DEFAULT 0,
-    run REAL NOT NULL DEFAULT 0,
-    rebirths INTEGER NOT NULL DEFAULT 0,
-    energy REAL NOT NULL DEFAULT 100,
-    playtime REAL NOT NULL DEFAULT 0,
-    upgrades TEXT NOT NULL DEFAULT '{}',
-    rev INTEGER NOT NULL DEFAULT 0,
-    updated_at INTEGER NOT NULL,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-`);
-
-for (const [name, ddl] of Object.entries({
-  avatar: "TEXT",
-  avatar_updated_at: "INTEGER",
-})) {
-  const cols = db.prepare("PRAGMA table_info(users)").all();
-  if (!cols.some((c) => c.name === name)) {
-    db.exec(`ALTER TABLE users ADD COLUMN ${name} ${ddl}`);
-  }
-}
-
-for (const [name, ddl] of Object.entries({
-  balance: "REAL NOT NULL DEFAULT 0",
-  run: "REAL NOT NULL DEFAULT 0",
-  rebirths: "INTEGER NOT NULL DEFAULT 0",
-  energy: "REAL NOT NULL DEFAULT 100",
-  playtime: "REAL NOT NULL DEFAULT 0",
-  upgrades: "TEXT NOT NULL DEFAULT '{}'",
-  rev: "INTEGER NOT NULL DEFAULT 0",
-})) {
-  const cols = db.prepare("PRAGMA table_info(clicker_progress)").all();
-  if (!cols.some((c) => c.name === name)) {
-    db.exec(`ALTER TABLE clicker_progress ADD COLUMN ${name} ${ddl}`);
-  }
-}
 
 const now = () => Date.now();
 
@@ -185,40 +49,42 @@ function genKey() {
   return `SODA-${block()}-${block()}-${block()}`;
 }
 
-function log(user, action, details, ip) {
-  db.prepare(
-    "INSERT INTO logs (user_id, username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?)"
-  ).run(user ? user.id : null, user ? user.username : null, action, details || "", ip || "", now());
+async function log(user, action, details, ip) {
+  (await run("INSERT INTO logs (user_id, username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?)", user ? user.id : null, user ? user.username : null, action, details || "", ip || "", now()));
 }
 
 // ---------- seed ----------
-function seed() {
-  const insertUser = db.prepare(
-    `INSERT INTO users (username, email, password_hash, password_salt, role, plan, plan_expires_at, created_at)
-     VALUES (?, ?, ?, ?, 'admin', 'premium', ?, ?)`
-  );
+async function seed() {
   for (const name of ADMIN_NAMES) {
-    const exists = db.prepare("SELECT id FROM users WHERE username = ? COLLATE NOCASE").get(name);
+    const exists = await get("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", name);
     if (!exists) {
       const { hash, salt } = hashPassword(DEFAULT_ADMIN_PASSWORD);
-      insertUser.run(name, `${name}@sodadlc.local`, hash, salt, now() + 3650 * 864e5, now());
+      await run(
+        `INSERT INTO users (username, email, password_hash, password_salt, role, plan, plan_expires_at, created_at)
+         VALUES (?, ?, ?, ?, 'admin', 'premium', ?, ?)`,
+        name,
+        `${name}@sodadlc.local`,
+        hash,
+        salt,
+        now() + 3650 * 864e5,
+        now()
+      );
       console.log(`[seed] admin "${name}" created (password: ${DEFAULT_ADMIN_PASSWORD})`);
     }
   }
 
-  const newsCount = db.prepare("SELECT COUNT(*) AS c FROM news").get().c;
+  const newsCount = (await get("SELECT COUNT(*)::integer AS c FROM news")).c;
   if (newsCount === 0) {
-    const ins = db.prepare(
-      "INSERT INTO news (title, body, author, pinned, created_at) VALUES (?, ?, ?, ?, ?)"
-    );
-    ins.run(
+    const insertNews = async (title, body, author, pinned, createdAt) =>
+      run("INSERT INTO news (title, body, author, pinned, created_at) VALUES (?, ?, ?, ?, ?)", title, body, author, pinned, createdAt);
+    await insertNews(
       "Добро пожаловать в SodaDlc",
       "Мы перезапустили проект под новым именем. Теперь сайт полностью рабочий: регистрация, личный кабинет, ключи и админ-панель. Добро пожаловать!",
       "SodaDlc",
       1,
       now()
     );
-    ins.run(
+    await insertNews(
       "Как активировать ключ",
       "Зарегистрируйтесь, войдите в личный кабинет и введите ключ в поле «Активация ключа». Ключ сразу продлит вашу подписку.",
       "SodaDlc",
@@ -227,34 +93,40 @@ function seed() {
     );
   }
 
-  const keyCount = db.prepare("SELECT COUNT(*) AS c FROM license_keys").get().c;
+  const keyCount = (await get("SELECT COUNT(*)::integer AS c FROM license_keys")).c;
   if (keyCount === 0) {
-    db.prepare(
-      "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, 'pro', 30, 1, ?)"
-    ).run("SODA-DEMO-2026", now());
+    await run(
+      "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, 'pro', 30, 1, ?)",
+      "SODA-DEMO-2026",
+      now()
+    );
     console.log("[seed] demo key created: SODA-DEMO-2026 (pro, 30 days)");
   }
 
-  const lvCount = db.prepare("SELECT COUNT(*) AS c FROM launcher_versions").get().c;
-  const insVersion = db.prepare(
-    "INSERT INTO launcher_versions (brand, version, changelog, download_url_win, download_url_linux, download_url_mac, force_update, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-  );
-  const ensureVersion = (brand, version, changelog) => {
-    const exists = db.prepare("SELECT id FROM launcher_versions WHERE brand = ?").get(brand);
-    if (!exists) insVersion.run(brand, version, changelog, "", "", "", 0, now());
+  const ensureVersion = async (brand, version, changelog) => {
+    const exists = await get("SELECT id FROM launcher_versions WHERE brand = ?", brand);
+    if (!exists) {
+      await run(
+        "INSERT INTO launcher_versions (brand, version, changelog, download_url_win, download_url_linux, download_url_mac, force_update, created_at) VALUES (?, ?, ?, '', '', '', 0, ?)",
+        brand,
+        version,
+        changelog,
+        now()
+      );
+    }
   };
+  const lvCount = (await get("SELECT COUNT(*)::integer AS c FROM launcher_versions")).c;
   if (lvCount === 0) {
-    ensureVersion("SodaDlc Legit", "1.0.0", "Первый релиз SodaDlc Legit\n- Чистый визуал без риска\n- Полная интеграция с сайтом\n- Система ключей и подписок");
-    ensureVersion("SodaDlc Rage", "1.0.0", "Первый релиз SodaDlc Rage\n- Агрессивный визуал\n- Максимальная выразительность\n- Полная интеграция с сайтом");
-    ensureVersion("SodaVisuals", "2.1.0", "Обновление визуалов\n- Новые шейдеры\n- Исправлены баги");
+    await ensureVersion("SodaDlc Legit", "1.0.0", "Первый релиз SodaDlc Legit\n- Чистый визуал без риска\n- Полная интеграция с сайтом\n- Система ключей и подписок");
+    await ensureVersion("SodaDlc Rage", "1.0.0", "Первый релиз SodaDlc Rage\n- Агрессивный визуал\n- Максимальная выразительность\n- Полная интеграция с сайтом");
+    await ensureVersion("SodaVisuals", "2.1.0", "Обновление визуалов\n- Новые шейдеры\n- Исправлены баги");
     console.log("[seed] launcher versions created");
   } else {
-    ensureVersion("SodaDlc Legit", "1.0.0", "Чистый визуал без риска\n- Полная интеграция с сайтом\n- Система ключей и подписок");
-    ensureVersion("SodaDlc Rage", "1.0.0", "Агрессивный визуал\n- Максимальная выразительность\n- Полная интеграция с сайтом");
-    ensureVersion("SodaVisuals", "2.1.0", "Классические визуалы\n- Новые шейдеры\n- Стабильная работа");
+    await ensureVersion("SodaDlc Legit", "1.0.0", "Чистый визуал без риска\n- Полная интеграция с сайтом\n- Система ключей и подписок");
+    await ensureVersion("SodaDlc Rage", "1.0.0", "Агрессивный визуал\n- Максимальная выразительность\n- Полная интеграция с сайтом");
+    await ensureVersion("SodaVisuals", "2.1.0", "Классические визуалы\n- Новые шейдеры\n- Стабильная работа");
   }
 }
-seed();
 
 // ---------- helpers ----------
 const MIME = {
@@ -379,16 +251,12 @@ function authToken(req) {
   return token || "";
 }
 
-function getSessionUser(req) {
+async function getSessionUser(req) {
   const token = authToken(req);
   if (!token) return null;
-  const row = db
-    .prepare(
-      `SELECT s.expires_at, u.* FROM sessions s
+  const row = (await get(`SELECT s.expires_at, u.* FROM sessions s
        JOIN users u ON u.id = s.user_id
-       WHERE s.token_hash = ?`
-    )
-    .get(hashToken(token));
+       WHERE s.token_hash = ?`, hashToken(token)));
   if (!row) return null;
   if (row.expires_at < now() || row.banned) return null;
   return row;
@@ -429,8 +297,8 @@ function parseAvatar(raw) {
   return { value, mime: `image/${match[1]}`, buffer };
 }
 
-function requireUser(req, res) {
-  const user = getSessionUser(req);
+async function requireUser(req, res) {
+  const user = await getSessionUser(req);
   if (!user) {
     json(res, 401, { error: "Требуется авторизация" });
     return null;
@@ -438,8 +306,8 @@ function requireUser(req, res) {
   return user;
 }
 
-function requireAdmin(req, res) {
-  const user = requireUser(req, res);
+async function requireAdmin(req, res) {
+  const user = await requireUser(req, res);
   if (!user) return null;
   if (user.role !== "admin") {
     json(res, 403, { error: "Недостаточно прав" });
@@ -464,10 +332,14 @@ function rateLimit(req, res, bucket = "default", limit = 20, windowMs = 10 * 60 
   }
   return true;
 }
-setInterval(() => {
+setInterval(async () => {
   const t = now();
   for (const [key, item] of attempts) if (item.reset < t) attempts.delete(key);
-  db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(t);
+  try {
+    await run("DELETE FROM sessions WHERE expires_at < ?", t);
+  } catch (err) {
+    console.error("[cleanup]", err.message);
+  }
 }, 10 * 60 * 1000).unref();
 
 function validUsername(name) {
@@ -483,15 +355,15 @@ function planExpiryFrom(plan, days) {
   return now() + days * 864e5;
 }
 
-function applyPlan(userId, plan, days) {
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+async function applyPlan(userId, plan, days) {
+  const user = (await get("SELECT * FROM users WHERE id = ?", userId));
   if (!user) return null;
   let base = now();
   if (plan !== "free" && user.plan === plan && user.plan_expires_at && user.plan_expires_at > base) {
     base = user.plan_expires_at;
   }
   const expires = plan === "free" ? null : base + days * 864e5;
-  db.prepare("UPDATE users SET plan = ?, plan_expires_at = ? WHERE id = ?").run(plan, expires, userId);
+  (await run("UPDATE users SET plan = ?, plan_expires_at = ? WHERE id = ?", plan, expires, userId));
   return { plan, planExpiresAt: expires };
 }
 
@@ -539,20 +411,17 @@ function serializeClicker(row) {
   };
 }
 
-function readClicker(userId) {
-  return db.prepare("SELECT * FROM clicker_progress WHERE user_id = ?").get(userId) || null;
+async function readClicker(userId) {
+  return (await get("SELECT * FROM clicker_progress WHERE user_id = ?", userId)) || null;
 }
 
-function writeClicker(userId, state) {
-  db.prepare(
-    `INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, playtime, upgrades, rev, updated_at)
+async function writeClicker(userId, state) {
+  (await run(`INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, playtime, upgrades, rev, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        total = excluded.total, claimed = excluded.claimed, balance = excluded.balance,
        run = excluded.run, rebirths = excluded.rebirths, energy = excluded.energy,
-       playtime = excluded.playtime, upgrades = excluded.upgrades, rev = excluded.rev, updated_at = excluded.updated_at`
-  ).run(
-    userId,
+       playtime = excluded.playtime, upgrades = excluded.upgrades, rev = excluded.rev, updated_at = excluded.updated_at`, userId,
     Math.floor(state.total),
     Math.floor(state.claimed),
     state.balance,
@@ -562,8 +431,7 @@ function writeClicker(userId, state) {
     state.playtime,
     JSON.stringify(state.upgrades),
     state.rev,
-    now()
-  );
+    now()));
   return readClicker(userId);
 }
 
@@ -595,26 +463,20 @@ async function handleApi(req, res, url) {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return json(res, 400, { error: "Некорректный email" });
     }
-    if (db.prepare("SELECT id FROM users WHERE username = ? COLLATE NOCASE").get(username)) {
+    if ((await get("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", username))) {
       return json(res, 409, { error: "Этот ник уже занят" });
     }
-    if (email && db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE").get(email)) {
+    if (email && (await get("SELECT id FROM users WHERE LOWER(email) = LOWER(?)", email))) {
       return json(res, 409, { error: "Этот email уже используется" });
     }
     const { hash, salt } = hashPassword(password);
     const isAdmin = ADMIN_NAMES.some((n) => n.toLowerCase() === username.toLowerCase());
-    const result = db
-      .prepare(
-        `INSERT INTO users (username, email, password_hash, password_salt, role, plan, created_at)
-         VALUES (?, ?, ?, ?, ?, 'free', ?)`
-      )
-      .run(username, email || null, hash, salt, isAdmin ? "admin" : "user", now());
-    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid);
+    const result = (await run(`INSERT INTO users (username, email, password_hash, password_salt, role, plan, created_at)
+         VALUES (?, ?, ?, ?, ?, 'free', ?)`, username, email || null, hash, salt, isAdmin ? "admin" : "user", now()));
+    const user = (await get("SELECT * FROM users WHERE id = ?", result.lastInsertRowid));
     const token = crypto.randomBytes(32).toString("hex");
-    db.prepare(
-      "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run(hashToken(token), user.id, now(), now() + SESSION_TTL, clientIp(req), req.headers["user-agent"] || "");
-    log(user, "register", `Регистрация (${isAdmin ? "admin" : "user"})`, clientIp(req));
+    (await run("INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)", hashToken(token), user.id, now(), now() + SESSION_TTL, clientIp(req), req.headers["user-agent"] || ""));
+    await log(user, "register", `Регистрация (${isAdmin ? "admin" : "user"})`, clientIp(req));
     setSessionCookie(req, res, token);
     return json(res, 201, { user: publicUser(user) });
   }
@@ -624,58 +486,56 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const username = String(body.username || "").trim();
     const password = String(body.password || "");
-    const user = db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username);
+    const user = (await get("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", username));
     if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
       return json(res, 401, { error: "Неверный ник или пароль" });
     }
     if (user.banned) return json(res, 403, { error: "Аккаунт заблокирован" });
     const token = crypto.randomBytes(32).toString("hex");
-    db.prepare(
-      "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run(hashToken(token), user.id, now(), now() + SESSION_TTL, clientIp(req), req.headers["user-agent"] || "");
-    db.prepare("UPDATE users SET last_login_at = ? WHERE id = ?").run(now(), user.id);
-    log(user, "login", "", clientIp(req));
+    (await run("INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)", hashToken(token), user.id, now(), now() + SESSION_TTL, clientIp(req), req.headers["user-agent"] || ""));
+    (await run("UPDATE users SET last_login_at = ? WHERE id = ?", now(), user.id));
+    await log(user, "login", "", clientIp(req));
     setSessionCookie(req, res, token);
     return json(res, 200, { user: publicUser(user) });
   }
 
   if (route === "/api/logout" && method === "POST") {
     const token = parseCookies(req).soda_session;
-    if (token) db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(hashToken(token));
+    if (token) (await run("DELETE FROM sessions WHERE token_hash = ?", hashToken(token)));
     clearSessionCookie(req, res);
     return json(res, 200, { ok: true });
   }
 
   if (route === "/api/me" && method === "GET") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
     return json(res, 200, { user: publicUser(user) });
   }
 
   if (route === "/api/me/avatar" && method === "POST") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
     if (!rateLimit(req, res, "avatar", 30)) return;
     const body = await readBody(req);
     if (body.avatar === null || body.avatar === "") {
-      db.prepare("UPDATE users SET avatar = NULL, avatar_updated_at = ? WHERE id = ?").run(now(), user.id);
-      log(user, "avatar", "Удалён аватар", clientIp(req));
-      const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+      (await run("UPDATE users SET avatar = NULL, avatar_updated_at = ? WHERE id = ?", now(), user.id));
+      await log(user, "avatar", "Удалён аватар", clientIp(req));
+      const updated = (await get("SELECT * FROM users WHERE id = ?", user.id));
       return json(res, 200, { ok: true, user: publicUser(updated) });
     }
     const parsed = parseAvatar(body.avatar);
     if (!parsed) {
       return json(res, 400, { error: "Аватар: PNG, JPG или WEBP до 64 КБ" });
     }
-    db.prepare("UPDATE users SET avatar = ?, avatar_updated_at = ? WHERE id = ?").run(parsed.value, now(), user.id);
-    log(user, "avatar", "Обновлён аватар", clientIp(req));
-    const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+    (await run("UPDATE users SET avatar = ?, avatar_updated_at = ? WHERE id = ?", parsed.value, now(), user.id));
+    await log(user, "avatar", "Обновлён аватар", clientIp(req));
+    const updated = (await get("SELECT * FROM users WHERE id = ?", user.id));
     return json(res, 200, { ok: true, user: publicUser(updated) });
   }
 
   const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
   if (avatarMatch && method === "GET") {
-    const row = db.prepare("SELECT avatar FROM users WHERE id = ?").get(Number(avatarMatch[1]));
+    const row = (await get("SELECT avatar FROM users WHERE id = ?", Number(avatarMatch[1])));
     const parsed = row && parseAvatar(row.avatar);
     if (!parsed) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
@@ -693,7 +553,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/me/password" && method === "POST") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
     const body = await readBody(req);
     const current = String(body.currentPassword || "");
@@ -703,68 +563,63 @@ async function handleApi(req, res, url) {
     }
     if (next.length < 6) return json(res, 400, { error: "Новый пароль короче 6 символов" });
     const { hash, salt } = hashPassword(next);
-    db.prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?").run(hash, salt, user.id);
-    log(user, "password", "Смена пароля", clientIp(req));
+    (await run("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?", hash, salt, user.id));
+    await log(user, "password", "Смена пароля", clientIp(req));
     return json(res, 200, { ok: true });
   }
 
   if (route === "/api/keys/activate" && method === "POST") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
     if (!rateLimit(req, res, "activate", 20)) return;
     const body = await readBody(req);
     const key = String(body.key || "").trim().toUpperCase();
-    const row = db.prepare("SELECT * FROM license_keys WHERE key = ?").get(key);
+    const row = (await get("SELECT * FROM license_keys WHERE key = ?", key));
     if (!row) return json(res, 404, { error: "Ключ не найден" });
     if (row.used) return json(res, 409, { error: "Ключ уже активирован" });
     if (!normalizePlan(row.plan)) return json(res, 400, { error: "Повреждённый ключ" });
-    db.prepare(
-      "UPDATE license_keys SET used = 1, activated_by = ?, activated_at = ? WHERE id = ?"
-    ).run(user.id, now(), row.id);
-    const applied = applyPlan(user.id, row.plan, row.duration_days);
-    log(user, "key", `Активирован ключ ${key} (${row.plan}, ${row.duration_days} дн.)`, clientIp(req));
+    (await run("UPDATE license_keys SET used = 1, activated_by = ?, activated_at = ? WHERE id = ?", user.id, now(), row.id));
+    const applied = await applyPlan(user.id, row.plan, row.duration_days);
+    await log(user, "key", `Активирован ключ ${key} (${row.plan}, ${row.duration_days} дн.)`, clientIp(req));
     return json(res, 200, { ok: true, subscription: applied });
   }
 
   if (route === "/api/clicker/leaderboard" && method === "GET") {
-    const board = (field) =>
-      db
-        .prepare(
-          `SELECT u.id, u.username, cp.${field} AS value,
+    const board = async (field) => {
+      const rows = await all(`SELECT u.id, u.username, cp.${field} AS value,
                   CASE WHEN u.avatar IS NULL THEN 0 ELSE 1 END AS has_avatar,
                   u.avatar_updated_at
            FROM clicker_progress cp
            JOIN users u ON u.id = cp.user_id
            WHERE u.banned = 0 AND u.role != 'admin'
            ORDER BY cp.${field} DESC, cp.total DESC
-           LIMIT 10`
-        )
-        .all()
-        .map((row) => ({
-          username: row.username,
-          value: row.value,
-          avatar: row.has_avatar ? `/api/avatar/${row.id}?v=${row.avatar_updated_at || 0}` : null,
-        }));
+           LIMIT 10`);
+      return rows.map((row) => ({
+        username: row.username,
+        value: Number(row.value),
+        avatar: row.has_avatar ? `/api/avatar/${row.id}?v=${row.avatar_updated_at || 0}` : null,
+      }));
+    };
     return json(res, 200, {
-      rebirths: board("rebirths"),
-      clicks: board("total"),
-      hours: board("playtime"),
+      rebirths: await board("rebirths"),
+      clicks: await board("total"),
+      hours: await board("playtime"),
     });
   }
 
   if (route === "/api/clicker/state" && method === "GET") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
-    const row = readClicker(user.id);
+    const row = await readClicker(user.id);
     return json(res, 200, row ? serializeClicker(row) : serializeClicker(null));
   }
 
   if (route === "/api/clicker/save" && method === "POST") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
     if (!rateLimit(req, res, "clicker-save", 2000)) return;
     const body = await readBody(req);
-    const row = readClicker(user.id);
+    const row = await readClicker(user.id);
     const current = serializeClicker(row);
     const rev = Math.floor(Number(body.rev));
     if (!Number.isFinite(rev) || rev !== current.rev) {
@@ -783,12 +638,12 @@ async function handleApi(req, res, url) {
       upgrades,
       rev: current.rev + 1,
     };
-    const saved = writeClicker(user.id, state);
+    const saved = await writeClicker(user.id, state);
     return json(res, 200, serializeClicker(saved));
   }
 
   if (route === "/api/clicker/redeem" && method === "POST") {
-    const user = requireUser(req, res);
+    const user = await requireUser(req, res);
     if (!user) return;
     if (!rateLimit(req, res, "clicker", 6)) return;
     const body = await readBody(req);
@@ -797,7 +652,7 @@ async function handleApi(req, res, url) {
       return json(res, 400, { error: "Некорректный прогресс" });
     }
     const total = Math.min(reported, Number.MAX_SAFE_INTEGER);
-    const row = readClicker(user.id);
+    const row = await readClicker(user.id);
     const current = serializeClicker(row);
     const best = Math.max(total, current.total);
     if (best - current.claimed * CLICKER_KEY_COST < CLICKER_KEY_COST) {
@@ -806,17 +661,15 @@ async function handleApi(req, res, url) {
     let key;
     do {
       key = genKey();
-    } while (db.prepare("SELECT id FROM license_keys WHERE key = ?").get(key));
-    db.prepare(
-      "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, 'premium', 7, ?, ?)"
-    ).run(key, user.id, now());
-    const saved = writeClicker(user.id, {
+    } while ((await get("SELECT id FROM license_keys WHERE key = ?", key)));
+    (await run("INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, 'premium', 7, ?, ?)", key, user.id, now()));
+    const saved = await writeClicker(user.id, {
       ...current,
       total: best,
       claimed: current.claimed + 1,
       rev: current.rev + 1,
     });
-    log(user, "clicker", `Ключ за 1 трлн кликов: ${key}`, clientIp(req));
+    await log(user, "clicker", `Ключ за 1 трлн кликов: ${key}`, clientIp(req));
     return json(res, 201, {
       key,
       plan: "premium",
@@ -828,44 +681,38 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/news" && method === "GET") {
-    const rows = db
-      .prepare("SELECT id, title, body, author, pinned, created_at FROM news ORDER BY pinned DESC, created_at DESC LIMIT 30")
-      .all();
+    const rows = (await all("SELECT id, title, body, author, pinned, created_at FROM news ORDER BY pinned DESC, created_at DESC LIMIT 30"));
     return json(res, 200, { news: rows });
   }
 
   if (route === "/api/stats" && method === "GET") {
-    const users = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
-    const activated = db.prepare("SELECT COUNT(*) AS c FROM license_keys WHERE used = 1").get().c;
-    const newsCount = db.prepare("SELECT COUNT(*) AS c FROM news").get().c;
+    const users = (await get("SELECT COUNT(*)::integer AS c FROM users")).c;
+    const activated = (await get("SELECT COUNT(*)::integer AS c FROM license_keys WHERE used = 1")).c;
+    const newsCount = (await get("SELECT COUNT(*)::integer AS c FROM news")).c;
     return json(res, 200, { users, activated, news: newsCount });
   }
 
   // ---------- admin ----------
   if (route === "/api/admin/stats" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
     const t = now();
     return json(res, 200, {
-      users: db.prepare("SELECT COUNT(*) AS c FROM users").get().c,
-      admins: db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'").get().c,
-      banned: db.prepare("SELECT COUNT(*) AS c FROM users WHERE banned = 1").get().c,
-      activeSubs: db
-        .prepare("SELECT COUNT(*) AS c FROM users WHERE plan != 'free' AND plan_expires_at > ?")
-        .get(t).c,
-      keys: db.prepare("SELECT COUNT(*) AS c FROM license_keys").get().c,
-      unusedKeys: db.prepare("SELECT COUNT(*) AS c FROM license_keys WHERE used = 0").get().c,
-      online: db.prepare("SELECT COUNT(DISTINCT user_id) AS c FROM sessions WHERE expires_at > ?").get(t).c,
-      news: db.prepare("SELECT COUNT(*) AS c FROM news").get().c,
+      users: (await get("SELECT COUNT(*)::integer AS c FROM users")).c,
+      admins: (await get("SELECT COUNT(*)::integer AS c FROM users WHERE role = 'admin'")).c,
+      banned: (await get("SELECT COUNT(*)::integer AS c FROM users WHERE banned = 1")).c,
+      activeSubs: (await get("SELECT COUNT(*)::integer AS c FROM users WHERE plan != 'free' AND plan_expires_at > ?", t)).c,
+      keys: (await get("SELECT COUNT(*)::integer AS c FROM license_keys")).c,
+      unusedKeys: (await get("SELECT COUNT(*)::integer AS c FROM license_keys WHERE used = 0")).c,
+      online: (await get("SELECT COUNT(DISTINCT user_id)::integer AS c FROM sessions WHERE expires_at > ?", t)).c,
+      news: (await get("SELECT COUNT(*)::integer AS c FROM news")).c,
     });
   }
 
   if (route === "/api/admin/clicker" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
     const q = String(url.searchParams.get("q") || "").trim();
     const like = `%${q}%`;
-    const rows = db
-      .prepare(
-        `SELECT u.id, u.username, u.role,
+    const rows = (await all(`SELECT u.id, u.username, u.role,
                 COALESCE(cp.total, 0) AS total,
                 COALESCE(cp.balance, 0) AS balance,
                 COALESCE(cp.run, 0) AS run,
@@ -878,9 +725,7 @@ async function handleApi(req, res, url) {
          LEFT JOIN clicker_progress cp ON cp.user_id = u.id
          WHERE u.username LIKE ?
          ORDER BY COALESCE(cp.total, 0) DESC, u.id ASC
-         LIMIT 200`
-      )
-      .all(like)
+         LIMIT 200`, like))
       .map(({ has_avatar, avatar_updated_at, ...row }) => ({
         ...row,
         avatar: has_avatar ? `/api/avatar/${row.id}?v=${avatar_updated_at || 0}` : null,
@@ -889,7 +734,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/admin/clicker/grant" && method === "POST") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const body = await readBody(req);
     const userId = Math.floor(Number(body.userId));
@@ -897,16 +742,16 @@ async function handleApi(req, res, url) {
     if (!Number.isFinite(userId) || !Number.isFinite(amount) || amount === 0) {
       return json(res, 400, { error: "Укажите пользователя и количество кликов" });
     }
-    const target = db.prepare("SELECT id, username FROM users WHERE id = ?").get(userId);
+    const target = (await get("SELECT id, username FROM users WHERE id = ?", userId));
     if (!target) return json(res, 404, { error: "Пользователь не найден" });
-    const current = serializeClicker(readClicker(target.id));
-    const saved = writeClicker(target.id, {
+    const current = serializeClicker(await readClicker(target.id));
+    const saved = await writeClicker(target.id, {
       ...current,
       total: Math.max(0, current.total + amount),
       balance: Math.max(0, current.balance + amount),
       rev: current.rev + 1,
     });
-    log(
+    await log(
       admin,
       "admin:clicker",
       `${amount > 0 ? "Начислено" : "Списано"} ${Math.abs(amount)} кликов: ${target.username}`,
@@ -916,14 +761,14 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/admin/clicker/reset" && method === "POST") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const body = await readBody(req);
     const userId = Math.floor(Number(body.userId));
-    const target = db.prepare("SELECT id, username FROM users WHERE id = ?").get(userId);
+    const target = (await get("SELECT id, username FROM users WHERE id = ?", userId));
     if (!target) return json(res, 404, { error: "Пользователь не найден" });
-    const current = serializeClicker(readClicker(target.id));
-    const saved = writeClicker(target.id, {
+    const current = serializeClicker(await readClicker(target.id));
+    const saved = await writeClicker(target.id, {
       total: 0,
       claimed: 0,
       balance: 0,
@@ -934,27 +779,25 @@ async function handleApi(req, res, url) {
       upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
       rev: current.rev + 1,
     });
-    log(admin, "admin:clicker", `Сброшен прогресс кликера: ${target.username}`, clientIp(req));
+    await log(admin, "admin:clicker", `Сброшен прогресс кликера: ${target.username}`, clientIp(req));
     return json(res, 200, { ok: true, state: serializeClicker(saved) });
   }
 
   if (route === "/api/admin/users" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
     const q = String(url.searchParams.get("q") || "").trim();
     const rows = q
-      ? db
-          .prepare("SELECT * FROM users WHERE username LIKE ? COLLATE NOCASE ORDER BY id DESC")
-          .all(`%${q}%`)
-      : db.prepare("SELECT * FROM users ORDER BY id DESC").all();
+      ? (await all("SELECT * FROM users WHERE LOWER(username) LIKE LOWER(?) ORDER BY id DESC", `%${q}%`))
+      : (await all("SELECT * FROM users ORDER BY id DESC"));
     return json(res, 200, { users: rows.map(publicUser) });
   }
 
   let m = route.match(/^\/api\/admin\/users\/(\d+)$/);
   if (m && method === "PATCH") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const userId = Number(m[1]);
-    const target = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+    const target = (await get("SELECT * FROM users WHERE id = ?", userId));
     if (!target) return json(res, 404, { error: "Пользователь не найден" });
     const body = await readBody(req);
     const updates = [];
@@ -971,7 +814,7 @@ async function handleApi(req, res, url) {
       if (target.id === admin.id) return json(res, 400, { error: "Нельзя забанить самого себя" });
       updates.push("banned = ?");
       values.push(body.banned ? 1 : 0);
-      if (body.banned) db.prepare("DELETE FROM sessions WHERE user_id = ?").run(target.id);
+      if (body.banned) (await run("DELETE FROM sessions WHERE user_id = ?", target.id));
     }
     if (body.plan !== undefined) {
       const plan = normalizePlan(body.plan);
@@ -982,51 +825,47 @@ async function handleApi(req, res, url) {
     }
     if (!updates.length) return json(res, 400, { error: "Нет изменений" });
     values.push(userId);
-    db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`).run(...values);
-    const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
-    log(admin, "admin:user", `Изменён ${target.username}: ${JSON.stringify(body)}`, clientIp(req));
+    (await run(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, ...values));
+    const updated = (await get("SELECT * FROM users WHERE id = ?", userId));
+    await log(admin, "admin:user", `Изменён ${target.username}: ${JSON.stringify(body)}`, clientIp(req));
     return json(res, 200, { user: publicUser(updated) });
   }
 
   m = route.match(/^\/api\/admin\/users\/(\d+)\/reset-password$/);
   if (m && method === "POST") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const userId = Number(m[1]);
-    const target = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+    const target = (await get("SELECT * FROM users WHERE id = ?", userId));
     if (!target) return json(res, 404, { error: "Пользователь не найден" });
     const body = await readBody(req);
     const password = String(body.password || "");
     if (password.length < 6) return json(res, 400, { error: "Пароль короче 6 символов" });
     const { hash, salt } = hashPassword(password);
-    db.prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?").run(hash, salt, userId);
-    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
-    log(admin, "admin:password", `Сброшен пароль ${target.username}`, clientIp(req));
+    (await run("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?", hash, salt, userId));
+    (await run("DELETE FROM sessions WHERE user_id = ?", userId));
+    await log(admin, "admin:password", `Сброшен пароль ${target.username}`, clientIp(req));
     return json(res, 200, { ok: true });
   }
 
   m = route.match(/^\/api\/admin\/users\/(\d+)$/);
   if (m && method === "DELETE") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const userId = Number(m[1]);
     if (userId === admin.id) return json(res, 400, { error: "Нельзя удалить самого себя" });
-    const target = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+    const target = (await get("SELECT * FROM users WHERE id = ?", userId));
     if (!target) return json(res, 404, { error: "Пользователь не найден" });
-    db.prepare("DELETE FROM users WHERE id = ?").run(userId);
-    log(admin, "admin:user", `Удалён ${target.username}`, clientIp(req));
+    (await run("DELETE FROM users WHERE id = ?", userId));
+    await log(admin, "admin:user", `Удалён ${target.username}`, clientIp(req));
     return json(res, 200, { ok: true });
   }
 
   if (route === "/api/admin/keys" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
-    const rows = db
-      .prepare(
-        `SELECT k.*, u.username AS activated_username FROM license_keys k
+    if (!(await requireAdmin(req, res))) return;
+    const rows = (await all(`SELECT k.*, u.username AS activated_username FROM license_keys k
          LEFT JOIN users u ON u.id = k.activated_by
-         ORDER BY k.id DESC LIMIT 300`
-      )
-      .all();
+         ORDER BY k.id DESC LIMIT 300`));
     return json(res, 200, {
       keys: rows.map((k) => ({
         id: k.id,
@@ -1042,7 +881,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/admin/keys" && method === "POST") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const body = await readBody(req);
     const plan = normalizePlan(body.plan);
@@ -1050,35 +889,39 @@ async function handleApi(req, res, url) {
     const count = Math.max(1, Math.min(50, Number(body.count) || 1));
     if (!plan || plan === "free") return json(res, 400, { error: "Выберите тариф pro или premium" });
     const created = [];
-    const ins = db.prepare(
-      "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, ?, ?, ?, ?)"
-    );
     for (let i = 0; i < count; i++) {
       let key;
       do {
         key = genKey();
-      } while (db.prepare("SELECT id FROM license_keys WHERE key = ?").get(key));
-      ins.run(key, plan, days, admin.id, now());
+      } while (await get("SELECT id FROM license_keys WHERE key = ?", key));
+      await run(
+        "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
+        key,
+        plan,
+        days,
+        admin.id,
+        now()
+      );
       created.push(key);
     }
-    log(admin, "admin:keys", `Создано ключей: ${count} (${plan}, ${days} дн.)`, clientIp(req));
+    await log(admin, "admin:keys", `Создано ключей: ${count} (${plan}, ${days} дн.)`, clientIp(req));
     return json(res, 201, { keys: created });
   }
 
   m = route.match(/^\/api\/admin\/keys\/(\d+)$/);
   if (m && method === "DELETE") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const id = Number(m[1]);
-    const key = db.prepare("SELECT * FROM license_keys WHERE id = ?").get(id);
+    const key = (await get("SELECT * FROM license_keys WHERE id = ?", id));
     if (!key) return json(res, 404, { error: "Ключ не найден" });
-    db.prepare("DELETE FROM license_keys WHERE id = ?").run(id);
-    log(admin, "admin:keys", `Удалён ключ ${key.key}`, clientIp(req));
+    (await run("DELETE FROM license_keys WHERE id = ?", id));
+    await log(admin, "admin:keys", `Удалён ключ ${key.key}`, clientIp(req));
     return json(res, 200, { ok: true });
   }
 
   if (route === "/api/admin/news" && method === "POST") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const body = await readBody(req);
     const title = String(body.title || "").trim();
@@ -1086,35 +929,31 @@ async function handleApi(req, res, url) {
     if (title.length < 3 || title.length > 120) return json(res, 400, { error: "Заголовок: 3–120 символов" });
     if (text.length < 3 || text.length > 5000) return json(res, 400, { error: "Текст: 3–5000 символов" });
     const pinned = body.pinned ? 1 : 0;
-    if (pinned) db.prepare("UPDATE news SET pinned = 0").run();
-    db.prepare("INSERT INTO news (title, body, author, pinned, created_at) VALUES (?, ?, ?, ?, ?)").run(
-      title,
+    if (pinned) (await run("UPDATE news SET pinned = 0"));
+    (await run("INSERT INTO news (title, body, author, pinned, created_at) VALUES (?, ?, ?, ?, ?)", title,
       text,
       admin.username,
       pinned,
-      now()
-    );
-    log(admin, "admin:news", `Новость: ${title}`, clientIp(req));
+      now()));
+    await log(admin, "admin:news", `Новость: ${title}`, clientIp(req));
     return json(res, 201, { ok: true });
   }
 
   m = route.match(/^\/api\/admin\/news\/(\d+)$/);
   if (m && method === "DELETE") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const id = Number(m[1]);
-    const post = db.prepare("SELECT * FROM news WHERE id = ?").get(id);
+    const post = (await get("SELECT * FROM news WHERE id = ?", id));
     if (!post) return json(res, 404, { error: "Новость не найдена" });
-    db.prepare("DELETE FROM news WHERE id = ?").run(id);
-    log(admin, "admin:news", `Удалена новость: ${post.title}`, clientIp(req));
+    (await run("DELETE FROM news WHERE id = ?", id));
+    await log(admin, "admin:news", `Удалена новость: ${post.title}`, clientIp(req));
     return json(res, 200, { ok: true });
   }
 
   if (route === "/api/admin/logs" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
-    const rows = db
-      .prepare("SELECT * FROM logs ORDER BY id DESC LIMIT 100")
-      .all();
+    if (!(await requireAdmin(req, res))) return;
+    const rows = (await all("SELECT * FROM logs ORDER BY id DESC LIMIT 100"));
     return json(res, 200, { logs: rows });
   }
 
@@ -1122,9 +961,7 @@ async function handleApi(req, res, url) {
   if (route === "/api/launcher/version" && method === "GET") {
     const brand = String(url.searchParams.get("brand") || "SodaDlc");
     const current = String(url.searchParams.get("current") || "0.0.0");
-    const row = db
-      .prepare("SELECT * FROM launcher_versions WHERE brand = ? ORDER BY created_at DESC LIMIT 1")
-      .get(brand);
+    const row = (await get("SELECT * FROM launcher_versions WHERE brand = ? ORDER BY created_at DESC LIMIT 1", brand));
     if (!row) return json(res, 404, { error: "Версия не найдена" });
     const needsUpdate = compareVersions(current, row.version) < 0;
     return json(res, 200, {
@@ -1140,18 +977,15 @@ async function handleApi(req, res, url) {
 
   if (route === "/api/launcher/log" && method === "POST") {
     const body = await readBody(req);
-    const user = getSessionUser(req);
+    const user = await getSessionUser(req);
     const brand = String(body.brand || "SodaDlc");
     const version = String(body.version || "unknown");
     const os = String(body.os || "unknown");
     const arch = String(body.arch || "unknown");
     const action = String(body.action || "launch");
     const details = String(body.details || "");
-    db.prepare(
-      `INSERT INTO launcher_logs (user_id, username, brand, version, os, arch, action, details, ip, user_agent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      user ? user.id : null,
+    (await run(`INSERT INTO launcher_logs (user_id, username, brand, version, os, arch, action, details, ip, user_agent, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, user ? user.id : null,
       user ? user.username : null,
       brand,
       version,
@@ -1161,8 +995,7 @@ async function handleApi(req, res, url) {
       details,
       clientIp(req),
       req.headers["user-agent"] || "",
-      now()
-    );
+      now()));
     return json(res, 200, { ok: true });
   }
 
@@ -1175,27 +1008,21 @@ async function handleApi(req, res, url) {
     const version = String(body.version || "unknown");
     const os = String(body.os || "unknown");
     const arch = String(body.arch || "unknown");
-    const user = db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username);
+    const user = (await get("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", username));
     if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
-      db.prepare(
-        `INSERT INTO launcher_logs (username, brand, version, os, arch, action, details, ip, user_agent, created_at)
-         VALUES (?, ?, ?, ?, ?, 'login_failed', ?, ?, ?, ?)`
-      ).run(username, brand, version, os, arch, "Неверные учетные данные", clientIp(req), req.headers["user-agent"] || "", now());
+      (await run(`INSERT INTO launcher_logs (username, brand, version, os, arch, action, details, ip, user_agent, created_at)
+         VALUES (?, ?, ?, ?, ?, 'login_failed', ?, ?, ?, ?)`, username, brand, version, os, arch, "Неверные учетные данные", clientIp(req), req.headers["user-agent"] || "", now()));
       return json(res, 401, { error: "Неверный ник или пароль" });
     }
     if (user.banned) {
       return json(res, 403, { error: "Аккаунт заблокирован" });
     }
     const token = crypto.randomBytes(32).toString("hex");
-    db.prepare(
-      "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run(hashToken(token), user.id, now(), now() + SESSION_TTL, clientIp(req), req.headers["user-agent"] || "");
-    db.prepare("UPDATE users SET last_login_at = ? WHERE id = ?").run(now(), user.id);
-    log(user, "launcher:login", `${brand} v${version} (${os}/${arch})`, clientIp(req));
-    db.prepare(
-      `INSERT INTO launcher_logs (user_id, username, brand, version, os, arch, action, details, ip, user_agent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'login', ?, ?, ?, ?)`
-    ).run(user.id, user.username, brand, version, os, arch, `Успешный вход в ${brand}`, clientIp(req), req.headers["user-agent"] || "", now());
+    (await run("INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)", hashToken(token), user.id, now(), now() + SESSION_TTL, clientIp(req), req.headers["user-agent"] || ""));
+    (await run("UPDATE users SET last_login_at = ? WHERE id = ?", now(), user.id));
+    await log(user, "launcher:login", `${brand} v${version} (${os}/${arch})`, clientIp(req));
+    (await run(`INSERT INTO launcher_logs (user_id, username, brand, version, os, arch, action, details, ip, user_agent, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'login', ?, ?, ?, ?)`, user.id, user.username, brand, version, os, arch, `Успешный вход в ${brand}`, clientIp(req), req.headers["user-agent"] || "", now()));
     setSessionCookie(req, res, token);
     return json(res, 200, {
       token,
@@ -1205,7 +1032,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === "/api/launcher/activate" && method === "POST") {
-    const user = getSessionUser(req);
+    const user = await getSessionUser(req);
     if (!user || user.banned) return json(res, 401, { error: "Требуется авторизация" });
     const body = await readBody(req);
     const key = String(body.key || "").trim().toUpperCase();
@@ -1213,24 +1040,20 @@ async function handleApi(req, res, url) {
     const version = String(body.version || "unknown");
     const os = String(body.os || "unknown");
     const arch = String(body.arch || "unknown");
-    const row = db.prepare("SELECT * FROM license_keys WHERE key = ?").get(key);
+    const row = (await get("SELECT * FROM license_keys WHERE key = ?", key));
     if (!row) return json(res, 404, { error: "Ключ не найден" });
     if (row.used) return json(res, 409, { error: "Ключ уже активирован" });
     if (!normalizePlan(row.plan)) return json(res, 400, { error: "Повреждённый ключ" });
-    db.prepare(
-      "UPDATE license_keys SET used = 1, activated_by = ?, activated_at = ? WHERE id = ?"
-    ).run(user.id, now(), row.id);
-    const applied = applyPlan(user.id, row.plan, row.duration_days);
-    log(user, "launcher:key", `Активирован ключ ${key} (${row.plan}, ${row.duration_days} дн.) в ${brand}`, clientIp(req));
-    db.prepare(
-      `INSERT INTO launcher_logs (user_id, username, brand, version, os, arch, action, details, ip, user_agent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'activate_key', ?, ?, ?, ?)`
-    ).run(user.id, user.username, brand, version, os, arch, `Ключ ${key} (${row.plan})`, clientIp(req), req.headers["user-agent"] || "", now());
+    (await run("UPDATE license_keys SET used = 1, activated_by = ?, activated_at = ? WHERE id = ?", user.id, now(), row.id));
+    const applied = await applyPlan(user.id, row.plan, row.duration_days);
+    await log(user, "launcher:key", `Активирован ключ ${key} (${row.plan}, ${row.duration_days} дн.) в ${brand}`, clientIp(req));
+    (await run(`INSERT INTO launcher_logs (user_id, username, brand, version, os, arch, action, details, ip, user_agent, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'activate_key', ?, ?, ?, ?)`, user.id, user.username, brand, version, os, arch, `Ключ ${key} (${row.plan})`, clientIp(req), req.headers["user-agent"] || "", now()));
     return json(res, 200, { ok: true, subscription: applied });
   }
 
   if (route === "/api/launcher/status" && method === "GET") {
-    const user = getSessionUser(req);
+    const user = await getSessionUser(req);
     if (!user) return json(res, 401, { error: "Сессия недействительна" });
     const daysLeft = user.plan_expires_at ? Math.max(0, Math.ceil((user.plan_expires_at - now()) / 864e5)) : null;
     return json(res, 200, {
@@ -1242,32 +1065,26 @@ async function handleApi(req, res, url) {
 
   // ---------- admin launcher ----------
   if (route === "/api/admin/launcher-logs" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
     const brand = String(url.searchParams.get("brand") || "");
     const limit = Math.min(500, Number(url.searchParams.get("limit")) || 100);
     let rows;
     if (brand) {
-      rows = db
-        .prepare("SELECT * FROM launcher_logs WHERE brand = ? ORDER BY id DESC LIMIT ?")
-        .all(brand, limit);
+      rows = (await all("SELECT * FROM launcher_logs WHERE brand = ? ORDER BY id DESC LIMIT ?", brand, limit));
     } else {
-      rows = db
-        .prepare("SELECT * FROM launcher_logs ORDER BY id DESC LIMIT ?")
-        .all(limit);
+      rows = (await all("SELECT * FROM launcher_logs ORDER BY id DESC LIMIT ?", limit));
     }
     return json(res, 200, { logs: rows });
   }
 
   if (route === "/api/admin/launcher-versions" && method === "GET") {
-    if (!requireAdmin(req, res)) return;
-    const rows = db
-      .prepare("SELECT * FROM launcher_versions ORDER BY brand, created_at DESC")
-      .all();
+    if (!(await requireAdmin(req, res))) return;
+    const rows = (await all("SELECT * FROM launcher_versions ORDER BY brand, created_at DESC"));
     return json(res, 200, { versions: rows });
   }
 
   if (route === "/api/admin/launcher-versions" && method === "POST") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const body = await readBody(req);
     const brand = String(body.brand || "").trim();
@@ -1279,23 +1096,21 @@ async function handleApi(req, res, url) {
     const forceUpdate = body.forceUpdate ? 1 : 0;
     if (!brand || !version) return json(res, 400, { error: "Brand и version обязательны" });
     if (!["SodaDlc", "SodaVisuals", "SodaLegit"].includes(brand)) return json(res, 400, { error: "Неверный бренд" });
-    db.prepare(
-      `INSERT INTO launcher_versions (brand, version, changelog, download_url_win, download_url_linux, download_url_mac, force_update, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(brand, version, changelog, downloadUrlWin, downloadUrlLinux, downloadUrlMac, forceUpdate, now());
-    log(admin, "admin:launcher", `Добавлена версия ${brand} v${version}`, clientIp(req));
+    (await run(`INSERT INTO launcher_versions (brand, version, changelog, download_url_win, download_url_linux, download_url_mac, force_update, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, brand, version, changelog, downloadUrlWin, downloadUrlLinux, downloadUrlMac, forceUpdate, now()));
+    await log(admin, "admin:launcher", `Добавлена версия ${brand} v${version}`, clientIp(req));
     return json(res, 201, { ok: true });
   }
 
   m = route.match(/^\/api\/admin\/launcher-versions\/(\d+)$/);
   if (m && method === "DELETE") {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
     const id = Number(m[1]);
-    const v = db.prepare("SELECT * FROM launcher_versions WHERE id = ?").get(id);
+    const v = (await get("SELECT * FROM launcher_versions WHERE id = ?", id));
     if (!v) return json(res, 404, { error: "Версия не найдена" });
-    db.prepare("DELETE FROM launcher_versions WHERE id = ?").run(id);
-    log(admin, "admin:launcher", `Удалена версия ${v.brand} v${v.version}`, clientIp(req));
+    (await run("DELETE FROM launcher_versions WHERE id = ?", id));
+    await log(admin, "admin:launcher", `Удалена версия ${v.brand} v${v.version}`, clientIp(req));
     return json(res, 200, { ok: true });
   }
 
@@ -1368,7 +1183,7 @@ const server = http.createServer(async (req, res) => {
       await handleApi(req, res, url);
       return;
     }
-    if ((url.pathname === "/clicker" || url.pathname === "/clicker.html") && !getSessionUser(req)) {
+    if ((url.pathname === "/clicker" || url.pathname === "/clicker.html") && !(await getSessionUser(req))) {
       res.writeHead(302, { Location: "/login?next=/clicker" });
       res.end();
       return;
@@ -1384,9 +1199,18 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`SodaDlc is running: http://localhost:${PORT}`);
-  console.log(`Database: ${DB_PATH}`);
+async function start() {
+  const info = await initDb();
+  await seed();
+  server.listen(PORT, HOST, () => {
+    console.log(`SodaDlc is running: http://localhost:${PORT}`);
+    console.log(`Database: ${info.mode} (${info.path})`);
+  });
+}
+
+start().catch((err) => {
+  console.error("[startup]", err);
+  process.exit(1);
 });
 
 process.on("SIGTERM", () => server.close(() => process.exit(0)));

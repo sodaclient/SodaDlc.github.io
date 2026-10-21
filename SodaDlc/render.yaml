@@ -3,11 +3,13 @@ services:
     name: sodadlc
     runtime: node
     plan: free
-    buildCommand: "echo no build required"
-    startCommand: "node --experimental-sqlite server.js"
+    buildCommand: "npm ci"
+    startCommand: "node server.js"
     healthCheckPath: /api/stats
     envVars:
       - key: NODE_VERSION
         value: "24"
       - key: ADMIN_PASSWORD
         generateValue: true
+      - key: DATABASE_URL
+        sync: false

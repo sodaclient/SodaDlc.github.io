@@ -1,7 +1,9 @@
 # SodaDlc — полностью рабочий сайт
 
 Сайт с регистрацией, личным кабинетом, подписками по ключам и админ-панелью.
-Стек: **Node.js 24 + SQLite** (встроенный `node:sqlite`), **Express-подобный HTTP-сервер** без зависимостей.
+Стек: **Node.js 24 + PostgreSQL** (`pg`) в продакшене и **PGlite** локально, HTTP-сервер на встроенном `node:http`.
+
+Внешняя PostgreSQL хранит **все** данные: аккаунты, сессии, подписки, ключи, аватарки, кликер, новости, логи, версии лаунчера и настройки.
 
 ---
 
@@ -9,11 +11,13 @@
 
 ```bash
 cd /home/lorez/SCR\ Site_FadingVisual/SodaDlc
-node --experimental-sqlite server.js
+npm ci
+npm start
 # Откроется на http://localhost:3000
 ```
 
-> Флаг `--experimental-sqlite` нужен для Node 22/23; в Node 24 работает и без него, но флаг допускается.
+Без `DATABASE_URL` локально используется встроенный PostgreSQL-совместимый PGlite и папка `data/pglite`.
+Для продакшена задайте `DATABASE_URL` — сервер сам создаст все таблицы.
 
 ### Администраторы по умолчанию
 | Ник | Пароль | Роль |
@@ -30,8 +34,10 @@ node --experimental-sqlite server.js
 
 ```
 SodaDlc/
-├── server.js          # HTTP + API + SQLite
-├── package.json       # скрипты запуска
+├── server.js          # HTTP + API
+├── db.js              # PostgreSQL / PGlite + схема всех таблиц
+├── scripts/           # миграция данных из старого SQLite
+├── package.json       # зависимости и скрипты запуска
 ├── Dockerfile         # для Render / Railway / Fly
 ├── render.yaml        # деплой на Render.com (free)
 ├── public/            # статика (HTML, CSS, JS, изображения)
@@ -49,7 +55,7 @@ SodaDlc/
 │   ├── fonts/         # локальные шрифты
 │   └── images/        # hero + why-*.webp
 ├── launcher/          # нативные лаунчеры (Windows WebView2, Linux WebKitGTK)
-└── data/              # SQLite файл (создаётся автоматически)
+└── data/              # локальная PGlite (создаётся автоматически)
 ```
 
 ---
@@ -101,14 +107,23 @@ SodaDlc/
 ### Render.com (рекомендовано)
 1. Зарегистрируйтесь на [render.com](https://render.com) и подключите GitHub-репозиторий с этим кодом.
 2. Нажмите **New → Web Service** → выберите репозиторий.
-3. Render сам определит `render.yaml`. Если нет — вручную:
-   - **Build Command**: пусто (или `echo no build`)
-   - **Start Command**: `node --experimental-sqlite server.js`
+3. Создайте бесплатную PostgreSQL-базу: [Neon](https://neon.tech), [Supabase](https://supabase.com) или Render Postgres.
+4. В Render добавьте переменную окружения `DATABASE_URL` со строкой подключения (для Neon/Supabase добавьте `?sslmode=require`).
+5. Render сам определит `render.yaml`:
+   - **Build Command**: `npm ci`
+   - **Start Command**: `node server.js`
    - **Environment**: Node 24
-   - Добавьте переменную `ADMIN_PASSWORD` (сгенерируется случайная при первом деплое).
-4. Сайт будет доступен по адресу `https://sodaclient-github-io.onrender.com`.
+   - `ADMIN_PASSWORD` и `DATABASE_URL` — переменные окружения.
+6. Сайт будет доступен по адресу `https://sodaclient-github-io.onrender.com`.
 
-> ⚠️ На бесплатном плане диск **эфемерный** — при перезапуске/деплое база сбрасывается. Для постоянства нужен платный диск или внешняя БД (Turso, Neon, Supabase — у всех есть free tier).
+> Все таблицы создаются автоматически при старте. Бесплатный диск Render больше не нужен — данные живут во внешней PostgreSQL.
+
+### Перенос старых данных из SQLite
+Если раньше использовалась `data/sodadlc.db`, выполните **до первого запуска** на новой пустой базе:
+```bash
+DATABASE_URL="postgresql://..." npm run db:migrate
+```
+Скрипт переносит пользователей, сессии, подписки, ключи, кликер, аватарки, новости, логи и лаунчер. Старый файл не изменяется.
 
 ### Railway / Fly.io / Koyeb
 Аналогично — используйте `Dockerfile` или `startCommand`.
@@ -131,8 +146,10 @@ wget -qO- https://github.com/cloudflare/cloudflared/releases/latest/download/clo
 |------------|--------------|------------|
 | `PORT` | `3000` | Порт HTTP |
 | `HOST` | `0.0.0.0` | Слушающий интерфейс |
-| `DATA_DIR` | `./data` | Папка для `sodadlc.db` |
-| `DB_PATH` | `$DATA_DIR/sodadlc.db` | Путь к БД |
+| `DATABASE_URL` | — | Строка подключения PostgreSQL. Без неё — локальный PGlite |
+| `PG_POOL_SIZE` | `8` | Размер пула соединений PostgreSQL |
+| `DATA_DIR` | `./data` | Папка для локальной PGlite |
+| `PGLITE_DIR` | `$DATA_DIR/pglite` | Путь к локальной PGlite |
 | `ADMIN_PASSWORD` | `soda12345` | Пароль сид-админов при первом запуске |
 
 ---
