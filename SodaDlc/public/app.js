@@ -133,7 +133,7 @@ const SODA = (() => {
     const path = location.pathname;
     const links = [
       { href: "/", label: "Главная" },
-      { href: "/#pricing", label: "Тарифы" },
+      { href: "/#products", label: "Продукты" },
       { href: "/#features", label: "Возможности" },
       { href: "/news", label: "Новости" },
     ];
@@ -184,7 +184,7 @@ const SODA = (() => {
             <div>
               <h4>Разделы</h4>
               <a href="/">Главная</a>
-              <a href="/#pricing">Тарифы</a>
+              <a href="/#products">Продукты</a>
               <a href="/#features">Возможности</a>
               <a href="/news">Новости</a>
             </div>
