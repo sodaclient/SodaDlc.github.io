@@ -135,7 +135,6 @@ const SODA = (() => {
       { href: "/", label: "Главная" },
       { href: "/#pricing", label: "Тарифы" },
       { href: "/#features", label: "Возможности" },
-      { href: "/launcher", label: "Лаунчер" },
       { href: "/news", label: "Новости" },
     ];
     const active = (href) => (href === "/" ? path === "/" : path === href ? "active" : "");

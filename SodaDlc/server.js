@@ -245,7 +245,6 @@ const PAGES = {
   "/terms": "terms.html",
   "/privacy": "privacy.html",
   "/zapret": "zapret.html",
-  "/launcher": "launcher.html",
 };
 
 function send(res, status, body, headers = {}) {
