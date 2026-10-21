@@ -202,12 +202,8 @@ p { margin: 0; }
 }
 .plan:hover { border-color: #36422f; transform: translateY(-3px); }
 .plan.popular { border-color: rgba(183,255,60,0.5); box-shadow: 0 0 0 1px rgba(183,255,60,0.1), 0 24px 60px rgba(0,0,0,0.45); }
-.plan-tag { position: absolute; top: -12px; right: 20px; padding: 4px 12px; border-radius: 999px; background: var(--accent); color: #0a0c0a; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .plan h3 { font-size: 19px; }
 .plan h3 em { font-style: normal; }
-.plan.visuals .plan-tag { background: rgba(88,213,255,0.12); color: #9ae9ff; border: 1px solid rgba(88,213,255,0.35); }
-.plan.legit .plan-tag { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(183,255,60,0.35); }
-.plan.rage .plan-tag { background: rgba(255,90,60,0.12); color: #ff9a85; border: 1px solid rgba(255,90,60,0.35); }
 .plan .price { margin: 16px 0 4px; font-family: var(--font-display); font-size: 38px; }
 .plan .price small { font-size: 14px; color: var(--muted-2); font-family: var(--font-body); font-weight: 400; }
 .periods { display: flex; gap: 6px; margin: 10px 0 18px; }
@@ -495,4 +491,25 @@ tbody tr:last-child td { border-bottom: 0; }
 .kotokrol-say.show {
   opacity: 1;
   transform: translate(-50%, -100%) scale(1);
+}
+
+/* products: larger cards */
+#products .container { width: min(1320px, calc(100% - 40px)); }
+#products .cards-3 { gap: 24px; }
+#products .plan { min-height: 400px; padding: 36px 32px; border-radius: 18px; }
+#products .plan h3 { font-size: 28px; }
+#products .plan > p { font-size: 15.5px; line-height: 1.6; min-height: 76px; }
+#products .plan .price { margin: 26px 0 16px; font-size: 48px; }
+#products .plan .price small { font-size: 16px; }
+#products .periods { gap: 8px; margin: 12px 0 22px; }
+#products .period { padding: 12px 6px; font-size: 13.5px; border-radius: 11px; }
+#products .plan .btn { width: 100%; justify-content: center; padding: 15px 20px; font-size: 15px; }
+#products .buy-stub { margin-top: 24px; padding: 22px; font-size: 14px; }
+
+@media (max-width: 640px) {
+  #products .container { width: calc(100% - 28px); }
+  #products .plan { min-height: 0; padding: 28px 22px; }
+  #products .plan h3 { font-size: 24px; }
+  #products .plan .price { font-size: 40px; }
+  #products .period { font-size: 12px; padding: 10px 3px; }
 }
