@@ -26,6 +26,7 @@
         <button type="button" data-scroll="#keys">Активация ключа</button>
         <button type="button" data-scroll="#security">Безопасность</button>
         <a href="/news">Новости</a>
+        <a href="/clicker">Кликер</a>
         <a href="/admin" id="navAdmin" class="hidden">Админ-панель</a>
         <div class="side-sep"></div>
         <button type="button" data-logout>Выйти</button>
@@ -73,6 +74,19 @@
           </div>
         </section>
       </div>
+
+      <section class="panel" id="clickerSummary">
+        <div class="panel-head"><h2>Кликер</h2><a class="btn ghost sm" href="/clicker">Играть</a></div>
+        <div class="panel-body">
+          <div class="mini-stats" style="margin:0">
+            <div class="mini-stat"><b id="ckTotal">—</b><span>Всего кликов</span></div>
+            <div class="mini-stat"><b id="ckBalance">—</b><span>Баланс</span></div>
+            <div class="mini-stat"><b id="ckRebirths">—</b><span>Перерождений</span></div>
+            <div class="mini-stat"><b id="ckKeys">—</b><span>Ключей получено</span></div>
+          </div>
+          <div class="note" style="margin-top:14px">Прогресс сохраняется в аккаунте. За 1 трлн кликов — ключ на 7 дней.</div>
+        </div>
+      </section>
 
       <section class="panel" id="keys">
         <div class="panel-head"><h2>Активация ключа</h2><span class="small muted">Формат: SODA-XXXX-XXXX-XXXX</span></div>
@@ -164,6 +178,24 @@
       }
 
       paint(user);
+
+      (async () => {
+        try {
+          const s = await SODA.api("/api/clicker/state");
+          const compact = (n) => {
+            n = Math.floor(Number(n) || 0);
+            if (n >= 1e12) return parseFloat((n / 1e12).toFixed(2)) + " трлн";
+            if (n >= 1e9) return parseFloat((n / 1e9).toFixed(2)) + " млрд";
+            if (n >= 1e6) return parseFloat((n / 1e6).toFixed(2)) + " млн";
+            if (n >= 1e3) return parseFloat((n / 1e3).toFixed(1)) + " тыс";
+            return String(n);
+          };
+          document.getElementById("ckTotal").textContent = compact(s.total);
+          document.getElementById("ckBalance").textContent = compact(s.balance);
+          document.getElementById("ckRebirths").textContent = s.rebirths;
+          document.getElementById("ckKeys").textContent = s.claimed;
+        } catch {}
+      })();
 
       document.querySelectorAll("[data-scroll]").forEach((btn) => {
         btn.addEventListener("click", () => document.querySelector(btn.dataset.scroll)?.scrollIntoView({ behavior: "smooth" }));

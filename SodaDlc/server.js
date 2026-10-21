@@ -116,10 +116,30 @@ db.exec(`
     user_id INTEGER PRIMARY KEY,
     total INTEGER NOT NULL DEFAULT 0,
     claimed INTEGER NOT NULL DEFAULT 0,
+    balance REAL NOT NULL DEFAULT 0,
+    run REAL NOT NULL DEFAULT 0,
+    rebirths INTEGER NOT NULL DEFAULT 0,
+    energy REAL NOT NULL DEFAULT 100,
+    upgrades TEXT NOT NULL DEFAULT '{}',
+    rev INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
+
+for (const [name, ddl] of Object.entries({
+  balance: "REAL NOT NULL DEFAULT 0",
+  run: "REAL NOT NULL DEFAULT 0",
+  rebirths: "INTEGER NOT NULL DEFAULT 0",
+  energy: "REAL NOT NULL DEFAULT 100",
+  upgrades: "TEXT NOT NULL DEFAULT '{}'",
+  rev: "INTEGER NOT NULL DEFAULT 0",
+})) {
+  const cols = db.prepare("PRAGMA table_info(clicker_progress)").all();
+  if (!cols.some((c) => c.name === name)) {
+    db.exec(`ALTER TABLE clicker_progress ADD COLUMN ${name} ${ddl}`);
+  }
+}
 
 const now = () => Date.now();
 
@@ -440,6 +460,76 @@ function applyPlan(userId, plan, days) {
   return { plan, planExpiresAt: expires };
 }
 
+// ---------- clicker ----------
+const CLICKER_UPGRADES = ["power", "energy", "regen", "auto", "crit"];
+const CLICKER_MAX_LEVEL = 10000;
+
+function clampNumber(value, min, max, fallback = min) {
+  const x = Number(value);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.min(max, Math.max(min, x));
+}
+
+function clickerUpgrades(raw) {
+  let parsed = {};
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw || {};
+  } catch {}
+  const out = {};
+  for (const key of CLICKER_UPGRADES) {
+    out[key] = Math.floor(clampNumber(parsed[key], 0, CLICKER_MAX_LEVEL, 0));
+  }
+  return out;
+}
+
+function clickerMaxEnergy(upgrades) {
+  return 100 + clickerUpgrades(upgrades).energy * 20;
+}
+
+function serializeClicker(row) {
+  const r = row || {};
+  const upgrades = clickerUpgrades(r.upgrades);
+  return {
+    total: clampNumber(r.total, 0, Number.MAX_SAFE_INTEGER, 0),
+    claimed: Math.floor(clampNumber(r.claimed, 0, Number.MAX_SAFE_INTEGER, 0)),
+    balance: clampNumber(r.balance, 0, Number.MAX_SAFE_INTEGER, 0),
+    run: clampNumber(r.run, 0, Number.MAX_SAFE_INTEGER, 0),
+    rebirths: Math.floor(clampNumber(r.rebirths, 0, 1000000, 0)),
+    energy: clampNumber(r.energy, 0, clickerMaxEnergy(upgrades), 100),
+    upgrades,
+    rev: Math.floor(clampNumber(r.rev, 0, Number.MAX_SAFE_INTEGER, 0)),
+    updatedAt: Number(r.updated_at) || 0,
+    cost: CLICKER_KEY_COST,
+  };
+}
+
+function readClicker(userId) {
+  return db.prepare("SELECT * FROM clicker_progress WHERE user_id = ?").get(userId) || null;
+}
+
+function writeClicker(userId, state) {
+  db.prepare(
+    `INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, upgrades, rev, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       total = excluded.total, claimed = excluded.claimed, balance = excluded.balance,
+       run = excluded.run, rebirths = excluded.rebirths, energy = excluded.energy,
+       upgrades = excluded.upgrades, rev = excluded.rev, updated_at = excluded.updated_at`
+  ).run(
+    userId,
+    Math.floor(state.total),
+    Math.floor(state.claimed),
+    state.balance,
+    state.run,
+    state.rebirths,
+    state.energy,
+    JSON.stringify(state.upgrades),
+    state.rev,
+    now()
+  );
+  return readClicker(userId);
+}
+
 // ---------- API ----------
 async function handleApi(req, res, url) {
   const route = url.pathname;
@@ -559,15 +649,38 @@ async function handleApi(req, res, url) {
     return json(res, 200, { ok: true, subscription: applied });
   }
 
-  if (route === "/api/clicker/status" && method === "GET") {
+  if (route === "/api/clicker/state" && method === "GET") {
     const user = requireUser(req, res);
     if (!user) return;
-    const row = db.prepare("SELECT total, claimed FROM clicker_progress WHERE user_id = ?").get(user.id);
-    return json(res, 200, {
-      total: row ? row.total : 0,
-      claimed: row ? row.claimed : 0,
-      cost: CLICKER_KEY_COST,
-    });
+    const row = readClicker(user.id);
+    return json(res, 200, row ? serializeClicker(row) : serializeClicker(null));
+  }
+
+  if (route === "/api/clicker/save" && method === "POST") {
+    const user = requireUser(req, res);
+    if (!user) return;
+    if (!rateLimit(req, res, "clicker-save", 2000)) return;
+    const body = await readBody(req);
+    const row = readClicker(user.id);
+    const current = serializeClicker(row);
+    const rev = Math.floor(Number(body.rev));
+    if (!Number.isFinite(rev) || rev !== current.rev) {
+      return json(res, 409, { error: "Прогресс обновлён", state: current });
+    }
+    const upgrades = clickerUpgrades(body.upgrades);
+    const maxEnergyValue = clickerMaxEnergy(upgrades);
+    const state = {
+      total: Math.max(current.total, Math.floor(clampNumber(body.total, 0, Number.MAX_SAFE_INTEGER, current.total))),
+      claimed: current.claimed,
+      balance: clampNumber(body.balance, 0, Number.MAX_SAFE_INTEGER, 0),
+      run: clampNumber(body.run, 0, Number.MAX_SAFE_INTEGER, 0),
+      rebirths: Math.floor(clampNumber(body.rebirths, 0, 1000000, current.rebirths)),
+      energy: clampNumber(body.energy, 0, maxEnergyValue, maxEnergyValue),
+      upgrades,
+      rev: current.rev + 1,
+    };
+    const saved = writeClicker(user.id, state);
+    return json(res, 200, serializeClicker(saved));
   }
 
   if (route === "/api/clicker/redeem" && method === "POST") {
@@ -580,10 +693,10 @@ async function handleApi(req, res, url) {
       return json(res, 400, { error: "Некорректный прогресс" });
     }
     const total = Math.min(reported, Number.MAX_SAFE_INTEGER);
-    const prev = db.prepare("SELECT * FROM clicker_progress WHERE user_id = ?").get(user.id);
-    const best = Math.max(total, prev ? prev.total : 0);
-    const claimed = prev ? prev.claimed : 0;
-    if (best - claimed * CLICKER_KEY_COST < CLICKER_KEY_COST) {
+    const row = readClicker(user.id);
+    const current = serializeClicker(row);
+    const best = Math.max(total, current.total);
+    if (best - current.claimed * CLICKER_KEY_COST < CLICKER_KEY_COST) {
       return json(res, 400, { error: "Нужно 1 000 000 000 000 кликов" });
     }
     let key;
@@ -593,12 +706,21 @@ async function handleApi(req, res, url) {
     db.prepare(
       "INSERT INTO license_keys (key, plan, duration_days, created_by, created_at) VALUES (?, 'premium', 7, ?, ?)"
     ).run(key, user.id, now());
-    db.prepare(
-      `INSERT INTO clicker_progress (user_id, total, claimed, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(user_id) DO UPDATE SET total = excluded.total, claimed = excluded.claimed, updated_at = excluded.updated_at`
-    ).run(user.id, best, claimed + 1, now());
+    const saved = writeClicker(user.id, {
+      ...current,
+      total: best,
+      claimed: current.claimed + 1,
+      rev: current.rev + 1,
+    });
     log(user, "clicker", `Ключ за 1 трлн кликов: ${key}`, clientIp(req));
-    return json(res, 201, { key, plan: "premium", days: 7, claimed: claimed + 1, total: best });
+    return json(res, 201, {
+      key,
+      plan: "premium",
+      days: 7,
+      claimed: current.claimed + 1,
+      total: best,
+      state: serializeClicker(saved),
+    });
   }
 
   if (route === "/api/news" && method === "GET") {
@@ -631,6 +753,78 @@ async function handleApi(req, res, url) {
       online: db.prepare("SELECT COUNT(DISTINCT user_id) AS c FROM sessions WHERE expires_at > ?").get(t).c,
       news: db.prepare("SELECT COUNT(*) AS c FROM news").get().c,
     });
+  }
+
+  if (route === "/api/admin/clicker" && method === "GET") {
+    if (!requireAdmin(req, res)) return;
+    const q = String(url.searchParams.get("q") || "").trim();
+    const like = `%${q}%`;
+    const rows = db
+      .prepare(
+        `SELECT u.id, u.username, u.role,
+                COALESCE(cp.total, 0) AS total,
+                COALESCE(cp.balance, 0) AS balance,
+                COALESCE(cp.run, 0) AS run,
+                COALESCE(cp.rebirths, 0) AS rebirths,
+                COALESCE(cp.claimed, 0) AS claimed,
+                COALESCE(cp.updated_at, 0) AS updated_at
+         FROM users u
+         LEFT JOIN clicker_progress cp ON cp.user_id = u.id
+         WHERE u.username LIKE ?
+         ORDER BY COALESCE(cp.total, 0) DESC, u.id ASC
+         LIMIT 200`
+      )
+      .all(like);
+    return json(res, 200, { users: rows });
+  }
+
+  if (route === "/api/admin/clicker/grant" && method === "POST") {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    const body = await readBody(req);
+    const userId = Math.floor(Number(body.userId));
+    const amount = Math.floor(Number(body.amount));
+    if (!Number.isFinite(userId) || !Number.isFinite(amount) || amount === 0) {
+      return json(res, 400, { error: "Укажите пользователя и количество кликов" });
+    }
+    const target = db.prepare("SELECT id, username FROM users WHERE id = ?").get(userId);
+    if (!target) return json(res, 404, { error: "Пользователь не найден" });
+    const current = serializeClicker(readClicker(target.id));
+    const saved = writeClicker(target.id, {
+      ...current,
+      total: Math.max(0, current.total + amount),
+      balance: Math.max(0, current.balance + amount),
+      rev: current.rev + 1,
+    });
+    log(
+      admin,
+      "admin:clicker",
+      `${amount > 0 ? "Начислено" : "Списано"} ${Math.abs(amount)} кликов: ${target.username}`,
+      clientIp(req)
+    );
+    return json(res, 200, { ok: true, state: serializeClicker(saved) });
+  }
+
+  if (route === "/api/admin/clicker/reset" && method === "POST") {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    const body = await readBody(req);
+    const userId = Math.floor(Number(body.userId));
+    const target = db.prepare("SELECT id, username FROM users WHERE id = ?").get(userId);
+    if (!target) return json(res, 404, { error: "Пользователь не найден" });
+    const current = serializeClicker(readClicker(target.id));
+    const saved = writeClicker(target.id, {
+      total: 0,
+      claimed: 0,
+      balance: 0,
+      run: 0,
+      rebirths: 0,
+      energy: 100,
+      upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
+      rev: current.rev + 1,
+    });
+    log(admin, "admin:clicker", `Сброшен прогресс кликера: ${target.username}`, clientIp(req));
+    return json(res, 200, { ok: true, state: serializeClicker(saved) });
   }
 
   if (route === "/api/admin/users" && method === "GET") {
@@ -1061,6 +1255,11 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname.startsWith("/api/")) {
       await handleApi(req, res, url);
+      return;
+    }
+    if ((url.pathname === "/clicker" || url.pathname === "/clicker.html") && !getSessionUser(req)) {
+      res.writeHead(302, { Location: "/login?next=/clicker" });
+      res.end();
       return;
     }
     serveStatic(req, res, url);
