@@ -735,7 +735,7 @@ async function handleApi(req, res, url) {
                   u.avatar_updated_at
            FROM clicker_progress cp
            JOIN users u ON u.id = cp.user_id
-           WHERE u.banned = 0
+           WHERE u.banned = 0 AND u.role != 'admin'
            ORDER BY cp.${field} DESC, cp.total DESC
            LIMIT 10`
         )
