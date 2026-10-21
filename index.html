@@ -11,7 +11,7 @@
   <meta property="og:image" content="/logo.svg" />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=3" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -36,7 +36,7 @@
 
         <div class="hero-panel hero-kotokrol">
           <button class="kotokrol" id="kotokrol" type="button" title="Нажми :3" aria-label="Котокроль — нажми, чтобы он подпрыгнул">
-            <img src="/images/kotokrol.webp" alt="Котокроль" draggable="false">
+            <img src="/images/kotokrol.webp?v=2" alt="Котокроль" draggable="false">
           </button>
         </div>
       </div>
@@ -230,13 +230,13 @@
   (() => {
     const kk = document.getElementById("kotokrol");
     if (!kk) return;
+    let timer = null;
     kk.addEventListener("click", () => {
       kk.classList.remove("jump");
       void kk.offsetWidth;
       kk.classList.add("jump");
-    });
-    kk.addEventListener("animationend", (e) => {
-      if (e.animationName === "kotokrol-jump") kk.classList.remove("jump");
+      clearTimeout(timer);
+      timer = setTimeout(() => kk.classList.remove("jump"), 1050);
     });
   })();
 </script>

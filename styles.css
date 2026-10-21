@@ -411,7 +411,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 
-.hero-kotokrol { display: flex; align-items: center; justify-content: center; }
+.hero-kotokrol { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
 .kotokrol {
   padding: 0;
   border: 0;
@@ -424,7 +424,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .kotokrol img {
   display: block;
-  width: min(100%, 430px);
+  width: min(100%, 320px);
   height: auto;
   pointer-events: none;
   user-select: none;
@@ -444,7 +444,4 @@ tbody tr:last-child td { border-bottom: 0; }
   74% { transform: translateY(0) rotate(360deg) scale(1.06, 0.94); }
   86% { transform: translateY(-16px) rotate(360deg) scale(1); }
   100% { transform: translateY(0) rotate(360deg) scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .kotokrol { animation: none; }
 }
