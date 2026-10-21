@@ -26,6 +26,7 @@ const SODA = (() => {
     if (!res.ok) {
       const err = new Error((data && data.error) || `Ошибка ${res.status}`);
       err.status = res.status;
+      err.data = data;
       throw err;
     }
     return data;
