@@ -44,7 +44,6 @@ SodaDlc/
 │   ├── terms.html     # соглашение
 │   ├── privacy.html   # политика конфиденциальности
 │   ├── zapret.html    # инструкция по Zapret
-│   ├── launcher.html  # веб-лаунчер в стиле .bat (/launcher)
 │   ├── app.js         # общий JS (API, UI, шапка/подвал)
 │   ├── styles.css     # вся стилистика
 │   ├── fonts/         # локальные шрифты
