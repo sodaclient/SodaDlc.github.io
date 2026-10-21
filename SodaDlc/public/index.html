@@ -34,6 +34,11 @@
           </div>
         </div>
 
+        <div class="hero-panel hero-kotokrol">
+          <button class="kotokrol" id="kotokrol" type="button" title="Нажми :3" aria-label="Котокроль — нажми, чтобы он подпрыгнул">
+            <img src="/images/kotokrol.webp" alt="Котокроль" draggable="false">
+          </button>
+        </div>
       </div>
 
       <div class="container">
@@ -221,5 +226,19 @@
       }
     })();
   </script>
+<script>
+  (() => {
+    const kk = document.getElementById("kotokrol");
+    if (!kk) return;
+    kk.addEventListener("click", () => {
+      kk.classList.remove("jump");
+      void kk.offsetWidth;
+      kk.classList.add("jump");
+    });
+    kk.addEventListener("animationend", (e) => {
+      if (e.animationName === "kotokrol-jump") kk.classList.remove("jump");
+    });
+  })();
+</script>
 </body>
 </html>
