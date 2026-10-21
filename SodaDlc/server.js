@@ -120,6 +120,7 @@ db.exec(`
     run REAL NOT NULL DEFAULT 0,
     rebirths INTEGER NOT NULL DEFAULT 0,
     energy REAL NOT NULL DEFAULT 100,
+    playtime REAL NOT NULL DEFAULT 0,
     upgrades TEXT NOT NULL DEFAULT '{}',
     rev INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL,
@@ -132,6 +133,7 @@ for (const [name, ddl] of Object.entries({
   run: "REAL NOT NULL DEFAULT 0",
   rebirths: "INTEGER NOT NULL DEFAULT 0",
   energy: "REAL NOT NULL DEFAULT 100",
+  playtime: "REAL NOT NULL DEFAULT 0",
   upgrades: "TEXT NOT NULL DEFAULT '{}'",
   rev: "INTEGER NOT NULL DEFAULT 0",
 })) {
@@ -496,6 +498,7 @@ function serializeClicker(row) {
     run: clampNumber(r.run, 0, Number.MAX_SAFE_INTEGER, 0),
     rebirths: Math.floor(clampNumber(r.rebirths, 0, 1000000, 0)),
     energy: clampNumber(r.energy, 0, clickerMaxEnergy(upgrades), 100),
+    playtime: clampNumber(r.playtime, 0, Number.MAX_SAFE_INTEGER, 0),
     upgrades,
     rev: Math.floor(clampNumber(r.rev, 0, Number.MAX_SAFE_INTEGER, 0)),
     updatedAt: Number(r.updated_at) || 0,
@@ -509,12 +512,12 @@ function readClicker(userId) {
 
 function writeClicker(userId, state) {
   db.prepare(
-    `INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, upgrades, rev, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, playtime, upgrades, rev, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        total = excluded.total, claimed = excluded.claimed, balance = excluded.balance,
        run = excluded.run, rebirths = excluded.rebirths, energy = excluded.energy,
-       upgrades = excluded.upgrades, rev = excluded.rev, updated_at = excluded.updated_at`
+       playtime = excluded.playtime, upgrades = excluded.upgrades, rev = excluded.rev, updated_at = excluded.updated_at`
   ).run(
     userId,
     Math.floor(state.total),
@@ -523,6 +526,7 @@ function writeClicker(userId, state) {
     state.run,
     state.rebirths,
     state.energy,
+    state.playtime,
     JSON.stringify(state.upgrades),
     state.rev,
     now()
@@ -649,6 +653,25 @@ async function handleApi(req, res, url) {
     return json(res, 200, { ok: true, subscription: applied });
   }
 
+  if (route === "/api/clicker/leaderboard" && method === "GET") {
+    const board = (field) =>
+      db
+        .prepare(
+          `SELECT u.username, cp.${field} AS value
+           FROM clicker_progress cp
+           JOIN users u ON u.id = cp.user_id
+           WHERE u.banned = 0
+           ORDER BY cp.${field} DESC, cp.total DESC
+           LIMIT 10`
+        )
+        .all();
+    return json(res, 200, {
+      rebirths: board("rebirths"),
+      clicks: board("total"),
+      hours: board("playtime"),
+    });
+  }
+
   if (route === "/api/clicker/state" && method === "GET") {
     const user = requireUser(req, res);
     if (!user) return;
@@ -676,6 +699,7 @@ async function handleApi(req, res, url) {
       run: clampNumber(body.run, 0, Number.MAX_SAFE_INTEGER, 0),
       rebirths: Math.floor(clampNumber(body.rebirths, 0, 1000000, current.rebirths)),
       energy: clampNumber(body.energy, 0, maxEnergyValue, maxEnergyValue),
+      playtime: Math.max(current.playtime, clampNumber(body.playtime, 0, Number.MAX_SAFE_INTEGER, current.playtime)),
       upgrades,
       rev: current.rev + 1,
     };
@@ -820,6 +844,7 @@ async function handleApi(req, res, url) {
       run: 0,
       rebirths: 0,
       energy: 100,
+      playtime: 0,
       upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
       rev: current.rev + 1,
     });

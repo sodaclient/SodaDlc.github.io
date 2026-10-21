@@ -29,7 +29,7 @@
   ];
 
   const defaults = {
-    balance: 0, total: 0, run: 0, rebirths: 0, energy: 100,
+    balance: 0, total: 0, run: 0, rebirths: 0, energy: 100, playtime: 0,
     upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
   };
 
@@ -113,6 +113,7 @@
     }
     state.rev = Math.floor(num(data.rev));
     state.energy = Math.min(maxEnergy(), num(data.energy, maxEnergy()));
+    state.playtime = Math.max(0, num(data.playtime));
     state.keySpent = state.claimed * KEY_COST;
   }
 
@@ -124,6 +125,7 @@
       run: state.run,
       rebirths: state.rebirths,
       energy: state.energy,
+      playtime: state.playtime,
       upgrades: state.upgrades,
     };
   }
@@ -246,6 +248,7 @@
     const dt = Math.min((t - last) / 1000, 30);
     last = t;
     if (!ready) return;
+    if (document.visibilityState === "visible") state.playtime += dt;
     state.energy = Math.min(maxEnergy(), state.energy + regen() * dt);
     const gained = autoCps() * dt;
     if (gained > 0) addGain(gained);
@@ -335,6 +338,8 @@
     }
   });
 
+  $("ckBoardsRefresh").addEventListener("click", loadBoards);
+
   $("ckCopyKey").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText($("ckKeyValue").textContent);
@@ -354,7 +359,45 @@
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) persist();
+    else last = Date.now();
   });
+
+  let currentUser = "";
+
+  function fmtHours(seconds) {
+    if (seconds <= 0) return "0 мин";
+    const h = seconds / 3600;
+    if (h < 1) return Math.max(1, Math.round(seconds / 60)) + " мин";
+    return (h < 10 ? h.toFixed(1) : Math.floor(h)) + " ч";
+  }
+
+  function renderBoard(id, rows, format) {
+    const el = $(id);
+    if (!el) return;
+    if (!rows || !rows.length) {
+      el.innerHTML = '<li class="ck-board-empty">Пока пусто</li>';
+      return;
+    }
+    el.innerHTML = rows
+      .map((row, i) => {
+        const me = currentUser && row.username.toLowerCase() === currentUser.toLowerCase();
+        return `<li class="ck-board-row${me ? " me" : ""}">
+          <span class="ck-rank">${i + 1}</span>
+          <span class="ck-board-name">${SODA.escapeHtml(row.username)}</span>
+          <b>${format(row.value)}</b>
+        </li>`;
+      })
+      .join("");
+  }
+
+  async function loadBoards() {
+    try {
+      const data = await SODA.api("/api/clicker/leaderboard");
+      renderBoard("ckBoardRebirths", data.rebirths, (v) => fmt(v));
+      renderBoard("ckBoardClicks", data.clicks, (v) => fmt(v));
+      renderBoard("ckBoardHours", data.hours, (v) => fmtHours(v));
+    } catch {}
+  }
 
   async function boot() {
     let cached = null;
@@ -380,6 +423,7 @@
       state.run = Math.max(state.run, num(cached.run));
       state.rebirths = Math.max(state.rebirths, Math.floor(num(cached.rebirths)));
       state.energy = Math.min(maxEnergy(), Math.max(state.energy, num(cached.energy)));
+      state.playtime = Math.max(state.playtime, num(cached.playtime));
       for (const key of Object.keys(defaults.upgrades)) {
         state.upgrades[key] = Math.max(state.upgrades[key], Math.floor(num(cached.upgrades && cached.upgrades[key])));
       }
@@ -396,6 +440,13 @@
     render();
     if (migrated) persist();
     setInterval(tick, 200);
+    SODA.me()
+      .then((u) => {
+        currentUser = (u && u.username) || "";
+      })
+      .catch(() => {})
+      .finally(loadBoards);
+    setInterval(loadBoards, 30000);
   }
 
   boot();

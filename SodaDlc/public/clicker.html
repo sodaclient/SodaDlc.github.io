@@ -7,7 +7,7 @@
   <meta name="description" content="Кликер SodaDlc: тапай стикер, качай силу, перерождайся и обменяй 1 трлн кликов на ключ на 7 дней." />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css?v=11" />
+  <link rel="stylesheet" href="/styles.css?v=12" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -81,6 +81,30 @@
         <div class="ck-upgrade-grid" id="ckUpgrades"></div>
       </section>
 
+      <section class="ck-block" id="leaderboards">
+        <div class="ck-block-head">
+          <div>
+            <h2>Лидерборды</h2>
+            <p>Топ-10 игроков по перерождениям, кликам и времени в игре.</p>
+          </div>
+          <button class="btn ghost sm" type="button" id="ckBoardsRefresh">Обновить</button>
+        </div>
+        <div class="ck-boards">
+          <article class="ck-board">
+            <div class="ck-board-head"><span>Перерождения</span><b>топ-10</b></div>
+            <ol class="ck-board-list" id="ckBoardRebirths"><li class="ck-board-empty">Загрузка…</li></ol>
+          </article>
+          <article class="ck-board">
+            <div class="ck-board-head"><span>Клики</span><b>топ-10</b></div>
+            <ol class="ck-board-list" id="ckBoardClicks"><li class="ck-board-empty">Загрузка…</li></ol>
+          </article>
+          <article class="ck-board">
+            <div class="ck-board-head"><span>Часы в игре</span><b>топ-10</b></div>
+            <ol class="ck-board-list" id="ckBoardHours"><li class="ck-board-empty">Загрузка…</li></ol>
+          </article>
+        </div>
+      </section>
+
       <section class="ck-rebirth">
         <div class="ck-rebirth-copy">
           <div class="eyebrow">Перерождение</div>
@@ -98,6 +122,6 @@
 
   <div id="site-footer"></div>
   <script src="/app.js?v=6"></script>
-  <script src="/clicker.js?v=1"></script>
+  <script src="/clicker.js?v=2"></script>
 </body>
 </html>

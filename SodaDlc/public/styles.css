@@ -603,3 +603,20 @@ tbody tr:last-child td { border-bottom: 0; }
   .ck-rebirth-stat { flex: 1; }
   .ck-rebirth-side .btn { width: 100%; }
 }
+
+.ck-boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 20px; }
+.ck-board { padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(170deg, var(--panel), #0d100c); }
+.ck-board-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.ck-board-head span { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.ck-board-head b { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted-2); }
+.ck-board-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.ck-board-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+.ck-board-row:last-child { border-bottom: 0; }
+.ck-board-row.me .ck-board-name { color: var(--accent); }
+.ck-rank { flex: none; width: 20px; color: var(--muted-2); font-size: 11px; font-weight: 800; }
+.ck-board-row:nth-child(1) .ck-rank { color: #ffd36b; }
+.ck-board-row:nth-child(2) .ck-rank { color: #d7dce0; }
+.ck-board-row:nth-child(3) .ck-rank { color: #d29a6a; }
+.ck-board-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck-board-row b { color: var(--accent); font-family: var(--font-display); font-size: 13px; }
+.ck-board-empty { padding: 14px 0; color: var(--muted-2); font-size: 12.5px; }
