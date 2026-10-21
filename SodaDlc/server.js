@@ -36,7 +36,9 @@ db.exec(`
     plan_expires_at INTEGER,
     banned INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
-    last_login_at INTEGER
+    last_login_at INTEGER,
+    avatar TEXT,
+    avatar_updated_at INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
@@ -127,6 +129,16 @@ db.exec(`
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
+
+for (const [name, ddl] of Object.entries({
+  avatar: "TEXT",
+  avatar_updated_at: "INTEGER",
+})) {
+  const cols = db.prepare("PRAGMA table_info(users)").all();
+  if (!cols.some((c) => c.name === name)) {
+    db.exec(`ALTER TABLE users ADD COLUMN ${name} ${ddl}`);
+  }
+}
 
 for (const [name, ddl] of Object.entries({
   balance: "REAL NOT NULL DEFAULT 0",
@@ -393,7 +405,28 @@ function publicUser(u) {
     banned: Boolean(u.banned),
     createdAt: u.created_at,
     lastLoginAt: u.last_login_at,
+    avatar: u.avatar ? `/api/avatar/${u.id}?v=${u.avatar_updated_at || 0}` : null,
   };
+}
+
+const AVATAR_MAX_BYTES = 64 * 1024;
+function parseAvatar(raw) {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match) return null;
+  let buffer;
+  try {
+    buffer = Buffer.from(match[2], "base64");
+  } catch {
+    return null;
+  }
+  if (buffer.length < 32 || buffer.length > AVATAR_MAX_BYTES) return null;
+  const png = buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  const jpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const webp = buffer.length > 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+  if (!(match[1] === "png" && png) && !(match[1] === "jpeg" && jpeg) && !(match[1] === "webp" && webp)) return null;
+  return { value, mime: `image/${match[1]}`, buffer };
 }
 
 function requireUser(req, res) {
@@ -619,6 +652,46 @@ async function handleApi(req, res, url) {
     return json(res, 200, { user: publicUser(user) });
   }
 
+  if (route === "/api/me/avatar" && method === "POST") {
+    const user = requireUser(req, res);
+    if (!user) return;
+    if (!rateLimit(req, res, "avatar", 30)) return;
+    const body = await readBody(req);
+    if (body.avatar === null || body.avatar === "") {
+      db.prepare("UPDATE users SET avatar = NULL, avatar_updated_at = ? WHERE id = ?").run(now(), user.id);
+      log(user, "avatar", "Удалён аватар", clientIp(req));
+      const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+      return json(res, 200, { ok: true, user: publicUser(updated) });
+    }
+    const parsed = parseAvatar(body.avatar);
+    if (!parsed) {
+      return json(res, 400, { error: "Аватар: PNG, JPG или WEBP до 64 КБ" });
+    }
+    db.prepare("UPDATE users SET avatar = ?, avatar_updated_at = ? WHERE id = ?").run(parsed.value, now(), user.id);
+    log(user, "avatar", "Обновлён аватар", clientIp(req));
+    const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+    return json(res, 200, { ok: true, user: publicUser(updated) });
+  }
+
+  const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
+  if (avatarMatch && method === "GET") {
+    const row = db.prepare("SELECT avatar FROM users WHERE id = ?").get(Number(avatarMatch[1]));
+    const parsed = row && parseAvatar(row.avatar);
+    if (!parsed) {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Not found");
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": parsed.mime,
+      "Content-Length": parsed.buffer.length,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
+    });
+    res.end(parsed.buffer);
+    return;
+  }
+
   if (route === "/api/me/password" && method === "POST") {
     const user = requireUser(req, res);
     if (!user) return;
@@ -657,14 +730,21 @@ async function handleApi(req, res, url) {
     const board = (field) =>
       db
         .prepare(
-          `SELECT u.username, cp.${field} AS value
+          `SELECT u.id, u.username, cp.${field} AS value,
+                  CASE WHEN u.avatar IS NULL THEN 0 ELSE 1 END AS has_avatar,
+                  u.avatar_updated_at
            FROM clicker_progress cp
            JOIN users u ON u.id = cp.user_id
            WHERE u.banned = 0
            ORDER BY cp.${field} DESC, cp.total DESC
            LIMIT 10`
         )
-        .all();
+        .all()
+        .map((row) => ({
+          username: row.username,
+          value: row.value,
+          avatar: row.has_avatar ? `/api/avatar/${row.id}?v=${row.avatar_updated_at || 0}` : null,
+        }));
     return json(res, 200, {
       rebirths: board("rebirths"),
       clicks: board("total"),
@@ -791,14 +871,20 @@ async function handleApi(req, res, url) {
                 COALESCE(cp.run, 0) AS run,
                 COALESCE(cp.rebirths, 0) AS rebirths,
                 COALESCE(cp.claimed, 0) AS claimed,
-                COALESCE(cp.updated_at, 0) AS updated_at
+                COALESCE(cp.updated_at, 0) AS updated_at,
+                CASE WHEN u.avatar IS NULL THEN 0 ELSE 1 END AS has_avatar,
+                u.avatar_updated_at
          FROM users u
          LEFT JOIN clicker_progress cp ON cp.user_id = u.id
          WHERE u.username LIKE ?
          ORDER BY COALESCE(cp.total, 0) DESC, u.id ASC
          LIMIT 200`
       )
-      .all(like);
+      .all(like)
+      .map(({ has_avatar, avatar_updated_at, ...row }) => ({
+        ...row,
+        avatar: has_avatar ? `/api/avatar/${row.id}?v=${avatar_updated_at || 0}` : null,
+      }));
     return json(res, 200, { users: rows });
   }
 

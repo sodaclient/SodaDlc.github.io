@@ -385,8 +385,12 @@
     el.innerHTML = rows
       .map((row, i) => {
         const me = currentUser && row.username.toLowerCase() === currentUser.toLowerCase();
+        const face = row.avatar
+          ? `<img src="${SODA.escapeHtml(row.avatar)}" alt="" />`
+          : SODA.escapeHtml(SODA.initials(row.username));
         return `<li class="ck-board-row${me ? " me" : ""}">
           <span class="ck-rank">${i + 1}</span>
+          <span class="ck-board-avatar">${face}</span>
           <span class="ck-board-name">${SODA.escapeHtml(row.username)}</span>
           <b>${format(row.value)}</b>
         </li>`;
