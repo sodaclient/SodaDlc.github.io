@@ -125,6 +125,11 @@ DATABASE_URL="postgresql://..." npm run db:migrate
 ```
 Скрипт переносит пользователей, сессии, подписки, ключи, кликер, аватарки, новости, логи и лаунчер. Старый файл не изменяется.
 
+Если локально уже используется новая PGlite (`data/pglite`), переносите её:
+```bash
+DATABASE_URL="postgresql://..." npm run db:migrate:pglite
+```
+
 ### Railway / Fly.io / Koyeb
 Аналогично — используйте `Dockerfile` или `startCommand`.
 

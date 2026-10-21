@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "db:migrate": "node --experimental-sqlite scripts/migrate-sqlite.js"
+    "db:migrate": "node --experimental-sqlite scripts/migrate-sqlite.js",
+    "db:migrate:pglite": "node scripts/migrate-pglite.js"
   },
   "engines": {
     "node": ">=22.5.0"
