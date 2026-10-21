@@ -136,7 +136,7 @@ p { margin: 0; }
   -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 20%, #000 10%, transparent 75%);
   pointer-events: none;
 }
-.hero-grid { display: grid; grid-template-columns: minmax(0, 780px); gap: 56px; align-items: center; }
+.hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 56px; align-items: center; }
 .badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 999px; border: 1px solid rgba(183,255,60,0.3); background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
 .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: pulse 1.8s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -408,4 +408,43 @@ tbody tr:last-child td { border-bottom: 0; }
   .auth-card { padding: 24px; }
   .toast-wrap { left: 14px; right: 14px; bottom: 14px; }
   .toast { max-width: none; }
+}
+
+
+.hero-kotokrol { display: flex; align-items: center; justify-content: center; }
+.kotokrol {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  animation: kotokrol-float 4.5s ease-in-out infinite;
+  will-change: transform;
+}
+.kotokrol img {
+  display: block;
+  width: min(100%, 430px);
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 34px 46px rgba(0, 0, 0, 0.55));
+  transition: filter 0.2s ease;
+}
+.kotokrol:hover img { filter: drop-shadow(0 34px 46px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 26px rgba(183, 255, 60, 0.25)); }
+.kotokrol.jump { animation: kotokrol-jump 1s cubic-bezier(0.3, 0.7, 0.35, 1); }
+@keyframes kotokrol-float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-12px) rotate(1.5deg); }
+}
+@keyframes kotokrol-jump {
+  0% { transform: translateY(0) rotate(0deg) scale(1); }
+  14% { transform: translateY(6px) rotate(0deg) scale(1.05, 0.93); }
+  46% { transform: translateY(-140px) rotate(200deg) scale(0.95, 1.05); }
+  74% { transform: translateY(0) rotate(360deg) scale(1.06, 0.94); }
+  86% { transform: translateY(-16px) rotate(360deg) scale(1); }
+  100% { transform: translateY(0) rotate(360deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kotokrol { animation: none; }
 }
