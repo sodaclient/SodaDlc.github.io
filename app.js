@@ -79,6 +79,11 @@ const SODA = (() => {
     return String(name || "?").slice(0, 2);
   }
 
+  function avatarInner(user) {
+    if (user && user.avatar) return `<img src="${escapeHtml(user.avatar)}" alt="" />`;
+    return escapeHtml(initials(user && user.username));
+  }
+
   function daysLeft(ts) {
     if (!ts) return null;
     return Math.max(0, Math.ceil((ts - Date.now()) / 864e5));
@@ -155,7 +160,7 @@ const SODA = (() => {
           <div class="nav-actions">
             ${
               user
-                ? `<a class="user-chip" href="/cabinet"><span class="avatar">${escapeHtml(initials(user.username))}</span>${escapeHtml(user.username)}</a>
+                ? `<a class="user-chip" href="/cabinet"><span class="avatar">${avatarInner(user)}</span>${escapeHtml(user.username)}</a>
                    <a class="btn ghost sm" href="/cabinet">${icon("user", 15)} Кабинет</a>`
                 : `<a class="btn ghost sm" href="/login">Войти</a>
                    <a class="btn sm" href="/register">Регистрация</a>`
@@ -241,5 +246,5 @@ const SODA = (() => {
     init();
   }
 
-  return { api, toast, escapeHtml, fmtDate, fmtDateTime, initials, daysLeft, planLabel, PLAN_PRICE, me, icon, bindLogout, renderHeader };
+  return { api, toast, escapeHtml, fmtDate, fmtDateTime, initials, avatarInner, daysLeft, planLabel, PLAN_PRICE, me, icon, bindLogout, renderHeader };
 })();

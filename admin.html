@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=13" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -295,7 +295,7 @@
   </div>
 
   <div id="site-footer"></div>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=7"></script>
   <script>
     (async () => {
       const user = await SODA.me(true).catch(() => null);
@@ -304,7 +304,10 @@
         return;
       }
       document.getElementById("adminApp").classList.remove("hidden");
-      document.getElementById("sideAvatar").textContent = SODA.initials(user.username);
+      const avatarHtml = (u) => u.avatar
+        ? `<img src="${SODA.escapeHtml(u.avatar)}" alt="" />`
+        : SODA.escapeHtml(SODA.initials(u.username));
+      document.getElementById("sideAvatar").innerHTML = avatarHtml(user);
       document.getElementById("sideName").textContent = user.username;
       SODA.bindLogout();
 
@@ -360,7 +363,7 @@
           body.innerHTML = users.map((u) => `
             <tr>
               <td class="muted">#${u.id}</td>
-              <td><div class="cell-user"><span class="avatar">${SODA.escapeHtml(SODA.initials(u.username))}</span>${SODA.escapeHtml(u.username)}</div></td>
+              <td><div class="cell-user"><span class="avatar">${avatarHtml(u)}</span>${SODA.escapeHtml(u.username)}</div></td>
               <td><span class="role-pill ${u.role}">${u.role}</span></td>
               <td><span class="plan-pill ${u.plan}">${SODA.planLabel(u.plan)}</span>${u.planExpiresAt ? `<div class="small muted">до ${SODA.fmtDate(u.planExpiresAt)}</div>` : ""}</td>
               <td>${u.banned ? '<span class="tag bad">Забанен</span>' : '<span class="tag ok">Активен</span>'}</td>
@@ -401,7 +404,7 @@
           body.innerHTML = data.users.map((u) => `
             <tr data-user="${u.id}">
               <td class="muted">#${u.id}</td>
-              <td><div class="cell-user"><span class="avatar">${SODA.escapeHtml(SODA.initials(u.username))}</span>${SODA.escapeHtml(u.username)}</div></td>
+              <td><div class="cell-user"><span class="avatar">${avatarHtml(u)}</span>${SODA.escapeHtml(u.username)}</div></td>
               <td>${fmt(u.total)}</td>
               <td>${fmt(u.balance)}</td>
               <td>${fmt(u.rebirths)}</td>

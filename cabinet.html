@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=13" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -53,6 +53,15 @@
         <section class="panel" id="overview">
           <div class="panel-head"><h2>Аккаунт</h2><span class="role-pill user" id="rolePill">user</span></div>
           <div class="panel-body">
+            <div class="avatar-editor">
+              <span class="avatar avatar-lg" id="profileAvatar">?</span>
+              <div class="avatar-actions">
+                <button class="btn ghost sm" type="button" id="avatarPick">Загрузить фото</button>
+                <button class="btn ghost sm hidden" type="button" id="avatarRemove">Удалить</button>
+                <input type="file" id="avatarInput" accept="image/*" hidden />
+                <p class="hint">PNG, JPG или WEBP. Фото обрежется в квадрат.</p>
+              </div>
+            </div>
             <div class="profile-row"><span>Никнейм</span><b id="profileName">—</b></div>
             <div class="profile-row"><span>Email</span><b id="profileEmail">—</b></div>
             <div class="profile-row"><span>ID</span><b id="profileId">—</b></div>
@@ -124,7 +133,7 @@
   </main>
 
   <div id="site-footer"></div>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=7"></script>
   <script>
     (async () => {
       let user;
@@ -140,9 +149,18 @@
 
       const planLabels = { free: "Free", pro: "Pro", premium: "Premium" };
 
+      function paintAvatar(el, u) {
+        if (!el) return;
+        el.innerHTML = u.avatar
+          ? `<img src="${SODA.escapeHtml(u.avatar)}" alt="" />`
+          : SODA.escapeHtml(SODA.initials(u.username));
+      }
+
       function paint(u) {
         user = u;
-        document.getElementById("sideAvatar").textContent = SODA.initials(u.username);
+        paintAvatar(document.getElementById("sideAvatar"), u);
+        paintAvatar(document.getElementById("profileAvatar"), u);
+        document.getElementById("avatarRemove").classList.toggle("hidden", !u.avatar);
         document.getElementById("sideName").textContent = u.username;
         document.getElementById("sideRole").textContent = u.role === "admin" ? "Администратор" : "Пользователь";
         document.getElementById("welcomeText").textContent = `Привет, ${u.username}. Управляй аккаунтом, подпиской и ключами.`;
@@ -178,6 +196,88 @@
       }
 
       paint(user);
+
+      const avatarInput = document.getElementById("avatarInput");
+      const avatarPick = document.getElementById("avatarPick");
+
+      function readImage(file) {
+        return new Promise((resolve, reject) => {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(img);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Не удалось прочитать изображение"));
+          };
+          img.src = url;
+        });
+      }
+
+      async function makeAvatar(file) {
+        if (!file.type.startsWith("image/")) throw new Error("Выбери изображение");
+        if (file.size > 12 * 1024 * 1024) throw new Error("Файл больше 12 МБ");
+        const img = await readImage(file);
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        if (!side) throw new Error("Не удалось прочитать изображение");
+        const sx = (img.naturalWidth - side) / 2;
+        const sy = (img.naturalHeight - side) / 2;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        for (const dim of [256, 224, 192, 160, 128, 96]) {
+          canvas.width = dim;
+          canvas.height = dim;
+          ctx.clearRect(0, 0, dim, dim);
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, dim, dim);
+          for (const quality of [0.85, 0.75, 0.65]) {
+            const out = canvas.toDataURL("image/webp", quality);
+            if (out.length <= 76000) return out;
+          }
+        }
+        throw new Error("Не удалось сжать изображение");
+      }
+
+      async function saveAvatar(avatar) {
+        await SODA.api("/api/me/avatar", { method: "POST", body: { avatar } });
+        const fresh = await SODA.me(true);
+        if (fresh) paint(fresh);
+        SODA.renderHeader();
+      }
+
+      avatarPick.addEventListener("click", () => avatarInput.click());
+
+      avatarInput.addEventListener("change", async () => {
+        const file = avatarInput.files && avatarInput.files[0];
+        avatarInput.value = "";
+        if (!file) return;
+        avatarPick.disabled = true;
+        avatarPick.textContent = "Загружаем…";
+        try {
+          const avatar = await makeAvatar(file);
+          await saveAvatar(avatar);
+          SODA.toast("Аватар обновлён", "ok");
+        } catch (err) {
+          SODA.toast(err.message, "err");
+        } finally {
+          avatarPick.disabled = false;
+          avatarPick.textContent = "Загрузить фото";
+        }
+      });
+
+      document.getElementById("avatarRemove").addEventListener("click", async () => {
+        const btn = document.getElementById("avatarRemove");
+        btn.disabled = true;
+        try {
+          await saveAvatar(null);
+          SODA.toast("Аватар удалён", "ok");
+        } catch (err) {
+          SODA.toast(err.message, "err");
+        } finally {
+          btn.disabled = false;
+        }
+      });
 
       (async () => {
         try {
