@@ -3,6 +3,7 @@
 (() => {
   const SAVE_KEY = "soda_clicker_v1";
   const KEY_COST = 1e12;
+  const OFFLINE_CAP = 12 * 3600;
   const $ = (id) => document.getElementById(id);
 
   const UPGRADES = [
@@ -19,7 +20,7 @@
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
     },
     {
-      id: "auto", name: "Автоклик", desc: "+0.5 клика в секунду (зависит от силы)", base: 150, growth: 1.65,
+      id: "auto", name: "Автоклик", desc: "+0.5 клика/сек, фармит и офлайн (до 12 ч)", base: 150, growth: 1.65,
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     },
     {
@@ -44,6 +45,7 @@
     rev: 0,
     claimed: 0,
     keySpent: 0,
+    updatedAt: 0,
   };
 
   let ready = false;
@@ -114,6 +116,7 @@
     state.rev = Math.floor(num(data.rev));
     state.energy = Math.min(maxEnergy(), num(data.energy, maxEnergy()));
     state.playtime = Math.max(0, num(data.playtime));
+    state.updatedAt = num(data.updatedAt);
     state.keySpent = state.claimed * KEY_COST;
   }
 
@@ -245,10 +248,11 @@
 
   function tick() {
     const t = Date.now();
-    const dt = Math.min((t - last) / 1000, 30);
+    const raw = Math.max(0, (t - last) / 1000);
+    const dt = Math.min(raw, OFFLINE_CAP);
     last = t;
     if (!ready) return;
-    if (document.visibilityState === "visible") state.playtime += dt;
+    if (document.visibilityState === "visible") state.playtime += Math.min(raw, 30);
     state.energy = Math.min(maxEnergy(), state.energy + regen() * dt);
     const gained = autoCps() * dt;
     if (gained > 0) addGain(gained);
@@ -433,12 +437,21 @@
       localStorage.removeItem(SAVE_KEY);
     } catch {}
 
+    let offlineGain = 0;
+    const idle = Math.min(Math.max((Date.now() - state.updatedAt) / 1000, 0), OFFLINE_CAP);
+    if (idle >= 30 && autoCps() > 0) {
+      offlineGain = autoCps() * idle;
+      addGain(offlineGain);
+      state.energy = Math.min(maxEnergy(), state.energy + regen() * idle);
+    }
+
     ready = true;
     last = Date.now();
     lastSave = Date.now();
     renderUpgrades();
     render();
-    if (migrated) persist();
+    if (offlineGain > 0) SODA.toast("Офлайн-фарм: +" + fmt(offlineGain) + " кликов");
+    if (migrated || offlineGain > 0) persist();
     setInterval(tick, 200);
     SODA.me()
       .then((u) => {
