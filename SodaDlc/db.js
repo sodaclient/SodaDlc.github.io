@@ -3,6 +3,15 @@
 const path = require("node:path");
 const fs = require("node:fs");
 
+const ENV_FILE = path.join(__dirname, ".env");
+if (fs.existsSync(ENV_FILE)) {
+  try {
+    process.loadEnvFile(ENV_FILE);
+  } catch (err) {
+    console.warn(`[env] не удалось прочитать ${ENV_FILE}: ${err.message}`);
+  }
+}
+
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const PGLITE_DIR = process.env.PGLITE_DIR || path.join(DATA_DIR, "pglite");
