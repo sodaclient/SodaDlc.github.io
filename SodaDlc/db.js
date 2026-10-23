@@ -124,10 +124,12 @@ const SCHEMA = `
     playtime DOUBLE PRECISION NOT NULL DEFAULT 0,
     upgrades TEXT NOT NULL DEFAULT '{}',
     skills TEXT NOT NULL DEFAULT '{}',
+    click_tree TEXT NOT NULL DEFAULT '{}',
     rev DOUBLE PRECISION NOT NULL DEFAULT 0,
     updated_at DOUBLE PRECISION NOT NULL
   );
   ALTER TABLE clicker_progress ADD COLUMN IF NOT EXISTS skills TEXT NOT NULL DEFAULT '{}';
+  ALTER TABLE clicker_progress ADD COLUMN IF NOT EXISTS click_tree TEXT NOT NULL DEFAULT '{}';
   CREATE INDEX IF NOT EXISTS clicker_total_idx ON clicker_progress (total DESC);
   CREATE INDEX IF NOT EXISTS clicker_rebirths_idx ON clicker_progress (rebirths DESC);
   CREATE INDEX IF NOT EXISTS clicker_playtime_idx ON clicker_progress (playtime DESC);

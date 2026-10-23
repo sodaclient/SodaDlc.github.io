@@ -7,7 +7,7 @@
   <meta name="description" content="Кликер SodaDlc: тапай стикер, качай силу, перерождайся и обменяй 1 трлн кликов на ключ на 7 дней." />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css?v=15" />
+  <link rel="stylesheet" href="/styles.css?v=16" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -57,6 +57,17 @@
             <span class="ck-skill-launch-text">
               <b>Паутина навыков</b>
               <small>Очков доступно: <span id="ckSkillBtnPoints">0</span></small>
+            </span>
+            <span class="ck-skill-launch-arrow">→</span>
+          </button>
+
+          <button class="ck-skill-launch ck-click-launch" id="ckOpenClickTree" type="button">
+            <span class="ck-skill-launch-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/><rect x="7" y="7" width="10" height="10" rx="2"/><path d="m10 10 4 4M14 10l-4 4"/></svg>
+            </span>
+            <span class="ck-skill-launch-text">
+              <b>Древо кликов</b>
+              <small>Улучшения за клики · навсегда</small>
             </span>
             <span class="ck-skill-launch-arrow">→</span>
           </button>
@@ -157,8 +168,34 @@
     </div>
   </div>
 
+  <div class="ck-modal" id="ckClickModal" hidden>
+    <div class="ck-modal-backdrop" data-close-click-tree></div>
+    <div class="ck-modal-panel" role="dialog" aria-modal="true" aria-labelledby="ckClickTitle">
+      <div class="ck-modal-head">
+        <div>
+          <div class="eyebrow">За клики</div>
+          <h2 id="ckClickTitle">Древо кликов</h2>
+          <p>Узлы покупаются из баланса кликов. Цена растёт с каждым уровнем, а купленные уровни остаются после перерождения.</p>
+        </div>
+        <button class="ck-modal-close" type="button" data-close-click-tree aria-label="Закрыть">×</button>
+      </div>
+      <div class="ck-web-scroll">
+        <div class="ck-web" id="ckClickTree">
+          <svg class="ck-web-lines" id="ckClickLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="ck-web-hub ck-web-hub-balance">
+            <span>Баланс</span>
+            <b id="ckClickBalance">0</b>
+            <small>кликов</small>
+          </div>
+          <div class="ck-web-nodes" id="ckClickNodes"></div>
+        </div>
+      </div>
+      <div class="ck-modal-foot">Доступные узлы подсвечены. Покупки за клики сохраняются после перерождения.</div>
+    </div>
+  </div>
+
   <div id="site-footer"></div>
   <script src="/app.js?v=7"></script>
-  <script src="/clicker.js?v=8"></script>
+  <script src="/clicker.js?v=9"></script>
 </body>
 </html>
