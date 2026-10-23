@@ -373,7 +373,7 @@ const CLICKER_MAX_LEVEL = 10000;
 const CLICKER_SKILLS = {
   might: 12, crit: 15, rage: 15,
   battery: 12, flow: 15, offline: 12,
-  auto: 15, fortune: 12, rebirth: 15,
+  auto: 15, fortune: 12, rebirth: 15, legacy: 10,
 };
 const CLICKER_SKILL_KEYS = Object.keys(CLICKER_SKILLS);
 const CLICKER_SKILL_REQS = {
@@ -381,6 +381,7 @@ const CLICKER_SKILL_REQS = {
   offline: { id: "battery", level: 5 },
   fortune: { id: "auto", level: 5 },
   rebirth: { id: "fortune", level: 5 },
+  legacy: { id: "rebirth", level: 5 },
 };
 
 function clampNumber(value, min, max, fallback = min) {

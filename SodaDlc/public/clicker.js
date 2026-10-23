@@ -66,12 +66,24 @@
       id: "rebirth", branch: "auto", name: "Колесо сансары", desc: "−3% к требованию перерождения за уровень", max: 15, req: { id: "fortune", level: 5 },
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 16v4h4M21 8V4h-4"/></svg>',
     },
+    {
+      id: "legacy", branch: "legacy", name: "Наследие", desc: "Сохраняет 5% уровней прокачки после перерождения", max: 10, req: { id: "rebirth", level: 5 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V8l8-5 8 5v12"/><path d="M8 20v-7h8v7M9 9h6"/></svg>',
+    },
   ];
   const SKILL_BRANCHES = [
     { id: "power", name: "Сила", tag: "Ветка I", desc: "Больше урона с каждого клика.", skills: ["might", "crit", "rage"] },
     { id: "energy", name: "Энергия", tag: "Ветка II", desc: "Дольше кликай без остановки.", skills: ["battery", "flow", "offline"] },
     { id: "auto", name: "Автоматизация", tag: "Ветка III", desc: "Пусть клики идут сами.", skills: ["auto", "fortune", "rebirth"] },
+    { id: "legacy", name: "Наследие", tag: "Ветка IV", desc: "Оставь часть прокачки на новый забег.", skills: ["legacy"] },
   ];
+  const SKILL_POS = {
+    rage: { x: 10, y: 7 }, crit: { x: 22, y: 23 }, might: { x: 35, y: 39 },
+    offline: { x: 90, y: 7 }, flow: { x: 78, y: 23 }, battery: { x: 65, y: 39 },
+    rebirth: { x: 10, y: 92 }, fortune: { x: 22, y: 76 }, auto: { x: 35, y: 61 },
+    legacy: { x: 67, y: 61 },
+  };
+  const SKILL_HUB = { x: 50, y: 50 };
   const SKILL_DEFAULTS = Object.fromEntries(SKILLS.map((skill) => [skill.id, 0]));
 
   const defaults = {
@@ -130,6 +142,7 @@
       case "auto": return "+" + level * 12 + "% к автоклику";
       case "fortune": return "+" + level * 5 + "% ко всем кликам";
       case "rebirth": return "−" + level * 3 + "% к требованию перерождения";
+      case "legacy": return "Сохраняет " + level * 5 + "% уровней прокачки";
       default: return "";
     }
   }
@@ -138,6 +151,9 @@
   }
   function fortuneMult() {
     return 1 + skillLevel("fortune") * 0.05;
+  }
+  function legacyKeep() {
+    return Math.min(0.5, skillLevel("legacy") * 0.05);
   }
 
   function mult() {
@@ -285,6 +301,8 @@
   const floats = $("ckFloats");
   const upgradesEl = $("ckUpgrades");
   const skillsEl = $("ckSkills");
+  const skillModal = $("ckSkillModal");
+  const openSkillsBtn = $("ckOpenSkills");
 
   function spawnFloat(event, value, crit) {
     const rect = stage.getBoundingClientRect();
@@ -327,49 +345,52 @@
   }
 
   function renderSkills() {
-    if (!skillsEl) return;
+    const nodesEl = $("ckSkillNodes");
+    if (!nodesEl) return;
+    const linesEl = $("ckSkillLines");
     const points = availableSkillPoints();
-    skillsEl.innerHTML = SKILL_BRANCHES.map((branch) => {
-      const nodes = branch.skills.map((id) => {
-        const skill = SKILLS.find((item) => item.id === id);
-        const level = skillLevel(skill.id);
-        const maxed = level >= skill.max;
-        const locked = !skillRequirementMet(skill);
-        const canBuy = !maxed && !locked && points > 0;
-        const current = level > 0 ? skillEffect(skill, level) : "Нет бонуса";
-        const next = maxed ? "" : skillEffect(skill, level + 1);
-        const reqSkill = skill.req ? SKILLS.find((item) => item.id === skill.req.id) : null;
-        const buttonText = maxed
-          ? "Максимум"
-          : locked
-            ? "Заблокировано"
-            : points < 1
-              ? "Нужно очко"
-              : "Изучить · 1 очко";
-        return `<article class="ck-skill${locked ? " is-locked" : ""}${maxed ? " is-maxed" : ""}">
-          <div class="ck-skill-head">
-            <span class="ck-skill-icon">${skill.icon}</span>
-            <span class="ck-skill-lvl">${level} / ${skill.max}</span>
-          </div>
-          <h3>${skill.name}</h3>
-          <p>${skill.desc}</p>
-          <div class="ck-skill-effect">Сейчас: ${current}</div>
-          ${!maxed && !locked ? `<div class="ck-skill-next">Далее: ${next}</div>` : ""}
-          ${locked ? `<div class="ck-skill-req">Нужно: ${reqSkill.name} ур. ${skill.req.level}</div>` : ""}
-          <button class="btn ghost sm" type="button" data-skill="${skill.id}" ${canBuy ? "" : "disabled"}>${buttonText}</button>
-        </article>`;
+    const links = [];
+    for (const branch of SKILL_BRANCHES) {
+      let prev = "hub";
+      for (const id of branch.skills) {
+        links.push([prev, id, branch.id]);
+        prev = id;
+      }
+    }
+    if (linesEl) {
+      linesEl.innerHTML = links.map(([from, to, branch]) => {
+        const a = from === "hub" ? SKILL_HUB : SKILL_POS[from];
+        const b = SKILL_POS[to];
+        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="${branch}${skillLevel(to) > 0 ? " is-active" : ""}" />`;
       }).join("");
-      return `<div class="ck-skill-branch ${branch.id}">
-        <div class="ck-skill-branch-head">
-          <span class="ck-skill-tag">${branch.tag}</span>
-          <h3>${branch.name}</h3>
-          <p>${branch.desc}</p>
-        </div>
-        <div class="ck-skill-list">${nodes}</div>
-      </div>`;
+    }
+    nodesEl.innerHTML = SKILLS.map((skill) => {
+      const level = skillLevel(skill.id);
+      const maxed = level >= skill.max;
+      const locked = !skillRequirementMet(skill);
+      const canBuy = !maxed && !locked && points > 0;
+      const current = level > 0 ? skillEffect(skill, level) : "Ещё не изучено";
+      const reqSkill = skill.req ? SKILLS.find((item) => item.id === skill.req.id) : null;
+      const status = maxed
+        ? "Максимум"
+        : locked
+          ? "Нужно: " + reqSkill.name + " " + skill.req.level
+          : points < 1
+            ? "Нужно очко"
+            : "Изучить · 1 очко";
+      const stateClass = maxed ? " is-maxed" : locked ? " is-locked" : canBuy ? " is-ready" : "";
+      const pos = SKILL_POS[skill.id];
+      return `<button class="ck-web-node ${skill.branch}${stateClass}" type="button" data-skill="${skill.id}" style="left:${pos.x}%;top:${pos.y}%" ${canBuy ? "" : "disabled"} title="${skill.name}: ${skill.desc}">
+        <span class="ck-web-node-head">
+          <span class="ck-web-node-icon">${skill.icon}</span>
+          <span class="ck-web-node-lvl">${level} / ${skill.max}</span>
+        </span>
+        <b>${skill.name}</b>
+        <span class="ck-web-node-desc">${current}</span>
+        <span class="ck-web-node-status">${status}</span>
+      </button>`;
     }).join("");
   }
-
   function render() {
     const me = maxEnergy();
     if (state.energy > me) state.energy = me;
@@ -399,8 +420,10 @@
     const canRebirth = state.run >= need;
     $("ckRebirths").textContent = state.rebirths;
     $("ckRebirthMult").textContent = "×" + round2(mult());
+    const keepPct = Math.round(legacyKeep() * 100);
     $("ckRebirthText").textContent =
       "Сбросит баланс, энергию и прокачку, но даст +25% к силе и очки навыков навсегда. " +
+      (keepPct > 0 ? "Наследие сохранит " + keepPct + "% уровней. " : "") +
       (canRebirth
         ? "Условие выполнено — можно перерождаться."
         : "За этот забег нужно " + fmt(need) + " кликов, сейчас " + fmt(state.run) + ".");
@@ -408,8 +431,11 @@
     rbBtn.disabled = !canRebirth;
     rbBtn.textContent = canRebirth ? "Переродиться" : "Нужно " + fmt(need);
 
-    $("ckSkillPoints").textContent = full(availableSkillPoints());
+    const skillPoints = availableSkillPoints();
+    $("ckSkillPoints").textContent = full(skillPoints);
     $("ckSkillTotal").textContent = "из " + full(skillPointsEarned());
+    $("ckSkillBtnPoints").textContent = full(skillPoints);
+    $("ckOpenSkills").classList.toggle("has-points", skillPoints > 0);
     syncUpgradeButtons();
   }
 
@@ -459,7 +485,30 @@
     render();
   }
 
+  function setSkillsOpen(open) {
+    if (!skillModal) return;
+    skillModal.hidden = !open;
+    skillModal.classList.toggle("is-open", open);
+    document.body.classList.toggle("ck-modal-open", open);
+    if (open) {
+      renderSkills();
+      const close = skillModal.querySelector(".ck-modal-close");
+      if (close) close.focus();
+    } else if (openSkillsBtn) {
+      openSkillsBtn.focus();
+    }
+  }
+
   sticker.addEventListener("click", clickSticker);
+  if (openSkillsBtn && skillModal) {
+    openSkillsBtn.addEventListener("click", () => setSkillsOpen(true));
+    skillModal.addEventListener("click", (event) => {
+      if (event.target.closest("[data-close-skills]")) setSkillsOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !skillModal.hidden) setSkillsOpen(false);
+    });
+  }
 
   upgradesEl.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-buy]");
@@ -509,17 +558,29 @@
     if (!ready) return;
     const need = rebirthNeed();
     if (state.run < need) return;
+    const keep = legacyKeep();
+    const keptUpgrades = {};
+    let keptLevels = 0;
+    for (const key of Object.keys(state.upgrades)) {
+      const kept = Math.floor(state.upgrades[key] * keep);
+      keptUpgrades[key] = kept;
+      keptLevels += kept;
+    }
     state.rebirths += 1;
     state.balance = 0;
     state.run = 0;
-    state.upgrades = { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 };
+    state.upgrades = keptUpgrades;
     state.energy = maxEnergy();
     localVersion += 1;
     renderUpgrades();
     renderSkills();
     render();
     persist();
-    SODA.toast("Перерождение! Множитель ×" + round2(mult()) + " · очков навыков: " + availableSkillPoints());
+    SODA.toast(
+      "Перерождение! Множитель ×" + round2(mult()) +
+      " · очков навыков: " + availableSkillPoints() +
+      (keptLevels > 0 ? " · сохранено ур.: " + keptLevels : "")
+    );
   });
 
   $("ckKeyBtn").addEventListener("click", async () => {
