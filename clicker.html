@@ -7,7 +7,7 @@
   <meta name="description" content="Кликер SodaDlc: тапай стикер, качай силу, перерождайся и обменяй 1 трлн кликов на ключ на 7 дней." />
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
-  <link rel="stylesheet" href="/styles.css?v=14" />
+  <link rel="stylesheet" href="/styles.css?v=15" />
 </head>
 <body>
   <div id="site-header"></div>
@@ -50,6 +50,17 @@
             <b id="ckPower">1</b>
           </div>
 
+          <button class="ck-skill-launch" id="ckOpenSkills" type="button">
+            <span class="ck-skill-launch-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M12 2v7.5M12 14.5V22M2 12h7.5M14.5 12H22M4.9 4.9l5.3 5.3M13.8 13.8l5.3 5.3M19.1 4.9l-5.3 5.3M10.2 13.8l-5.3 5.3"/></svg>
+            </span>
+            <span class="ck-skill-launch-text">
+              <b>Паутина навыков</b>
+              <small>Очков доступно: <span id="ckSkillBtnPoints">0</span></small>
+            </span>
+            <span class="ck-skill-launch-arrow">→</span>
+          </button>
+
           <div class="ck-key">
             <div class="ck-key-head">
               <span>Ключ на 7 дней</span>
@@ -79,22 +90,6 @@
           <span class="ck-hint">Клик = 1 энергия</span>
         </div>
         <div class="ck-upgrade-grid" id="ckUpgrades"></div>
-      </section>
-
-      <section class="ck-block" id="skills">
-        <div class="ck-block-head">
-          <div>
-            <div class="eyebrow">Навсегда</div>
-            <h2>Древо навыков</h2>
-            <p>Перерождения дают очки навыков: 1 за каждое и бонусные каждые 5. Навыки не сбрасываются.</p>
-          </div>
-          <div class="ck-skill-points">
-            <span>Очки навыков</span>
-            <b id="ckSkillPoints">0</b>
-            <small id="ckSkillTotal">из 0</small>
-          </div>
-        </div>
-        <div class="ck-skill-tree" id="ckSkills"></div>
       </section>
 
       <section class="ck-block" id="leaderboards">
@@ -136,8 +131,34 @@
     </div>
   </main>
 
+  <div class="ck-modal" id="ckSkillModal" hidden>
+    <div class="ck-modal-backdrop" data-close-skills></div>
+    <div class="ck-modal-panel" role="dialog" aria-modal="true" aria-labelledby="ckSkillTitle">
+      <div class="ck-modal-head">
+        <div>
+          <div class="eyebrow">Навсегда</div>
+          <h2 id="ckSkillTitle">Паутина навыков</h2>
+          <p>Клик по узлу покупает уровень. Ветки открываются по цепочке, а навыки не сбрасываются.</p>
+        </div>
+        <button class="ck-modal-close" type="button" data-close-skills aria-label="Закрыть">×</button>
+      </div>
+      <div class="ck-web-scroll">
+        <div class="ck-web" id="ckSkills">
+          <svg class="ck-web-lines" id="ckSkillLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="ck-web-hub">
+            <span>Очки навыков</span>
+            <b id="ckSkillPoints">0</b>
+            <small id="ckSkillTotal">из 0</small>
+          </div>
+          <div class="ck-web-nodes" id="ckSkillNodes"></div>
+        </div>
+      </div>
+      <div class="ck-modal-foot">Доступные узлы подсвечены. Навыки не сбрасываются, а «Наследие» сохраняет часть прокачки.</div>
+    </div>
+  </div>
+
   <div id="site-footer"></div>
   <script src="/app.js?v=7"></script>
-  <script src="/clicker.js?v=6"></script>
+  <script src="/clicker.js?v=7"></script>
 </body>
 </html>
