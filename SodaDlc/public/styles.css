@@ -579,6 +579,35 @@ tbody tr:last-child td { border-bottom: 0; }
 .ck-up-lvl { color: var(--muted-2); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .ck-up-body p { margin: 4px 0 12px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
 .ck-up .btn { width: 100%; margin-top: auto; justify-content: center; }
+.ck-skill-points { display: flex; flex: none; align-items: baseline; gap: 8px; padding: 10px 16px; border: 1px solid rgba(183,255,60,0.3); border-radius: 14px; background: rgba(183,255,60,0.06); }
+.ck-skill-points span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.ck-skill-points b { color: var(--accent); font-family: var(--font-display); font-size: 28px; line-height: 1; }
+.ck-skill-points small { color: var(--muted-2); font-size: 11px; }
+.ck-skill-tree { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.ck-skill-branch { --skill: var(--accent); --skill-soft: var(--accent-soft); padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(170deg, var(--panel), #0d100c); }
+.ck-skill-branch.power { --skill: #ff8a73; --skill-soft: rgba(255,138,115,0.12); }
+.ck-skill-branch.energy { --skill: #6cc6ff; --skill-soft: rgba(108,198,255,0.12); }
+.ck-skill-branch.auto { --skill: var(--accent); --skill-soft: var(--accent-soft); }
+.ck-skill-branch-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.ck-skill-tag { color: var(--skill); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.ck-skill-branch-head h3 { font-size: 22px; }
+.ck-skill-branch-head p { color: var(--muted); font-size: 12px; }
+.ck-skill-list { position: relative; display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.ck-skill-list::before { content: ""; position: absolute; left: 22px; top: 18px; bottom: 18px; width: 2px; background: linear-gradient(var(--skill-soft), transparent); }
+.ck-skill { position: relative; padding: 14px 14px 14px 54px; border: 1px solid var(--line); border-radius: 14px; background: rgba(10,13,9,0.55); transition: border-color 0.2s; }
+.ck-skill:hover { border-color: var(--skill); }
+.ck-skill.is-locked { opacity: 0.55; }
+.ck-skill.is-maxed { border-color: var(--skill-soft); }
+.ck-skill-head { position: absolute; left: 12px; top: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ck-skill-icon { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; color: var(--skill); background: var(--skill-soft); }
+.ck-skill-icon svg { width: 18px; height: 18px; }
+.ck-skill-lvl { color: var(--muted-2); font-size: 9.5px; font-weight: 800; white-space: nowrap; }
+.ck-skill h3 { font-size: 15px; }
+.ck-skill p { margin: 3px 0 8px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.ck-skill-effect { color: var(--skill); font-size: 11.5px; font-weight: 700; }
+.ck-skill-next { margin-top: 3px; color: var(--muted-2); font-size: 10.5px; }
+.ck-skill-req { margin-top: 4px; color: var(--warn); font-size: 10.5px; }
+.ck-skill .btn { width: 100%; margin-top: 10px; justify-content: center; }
 .ck-rebirth { display: flex; align-items: center; justify-content: space-between; gap: 34px; margin-top: 26px; padding: 34px; border: 1px solid rgba(183,255,60,0.28); border-radius: 24px; background: radial-gradient(circle at 0% 50%, rgba(183,255,60,0.1), transparent 55%), linear-gradient(170deg, var(--panel), #0b0e0a); }
 .ck-rebirth h2 { margin-top: 8px; font-size: clamp(24px, 3vw, 34px); }
 .ck-rebirth p { max-width: 560px; margin-top: 10px; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
@@ -590,6 +619,7 @@ tbody tr:last-child td { border-bottom: 0; }
 @media (max-width: 980px) {
   .ck-grid { grid-template-columns: 1fr; }
   .ck-key { margin-top: 0; }
+  .ck-skill-tree { grid-template-columns: 1fr; }
   .ck-rebirth { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 640px) {
@@ -599,6 +629,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .ck-block { margin-top: 44px; }
   .ck-block-head { flex-direction: column; align-items: flex-start; }
   .ck-upgrade-grid { grid-template-columns: 1fr; }
+  .ck-skill-points { width: 100%; justify-content: space-between; }
   .ck-rebirth { padding: 24px; }
   .ck-rebirth-side { width: 100%; }
   .ck-rebirth-stat { flex: 1; }

@@ -370,6 +370,18 @@ async function applyPlan(userId, plan, days) {
 // ---------- clicker ----------
 const CLICKER_UPGRADES = ["power", "energy", "regen", "auto", "crit"];
 const CLICKER_MAX_LEVEL = 10000;
+const CLICKER_SKILLS = {
+  might: 12, crit: 15, rage: 15,
+  battery: 12, flow: 15, offline: 12,
+  auto: 15, fortune: 12, rebirth: 15,
+};
+const CLICKER_SKILL_KEYS = Object.keys(CLICKER_SKILLS);
+const CLICKER_SKILL_REQS = {
+  rage: { id: "might", level: 5 },
+  offline: { id: "battery", level: 5 },
+  fortune: { id: "auto", level: 5 },
+  rebirth: { id: "fortune", level: 5 },
+};
 
 function clampNumber(value, min, max, fallback = min) {
   const x = Number(value);
@@ -389,22 +401,45 @@ function clickerUpgrades(raw) {
   return out;
 }
 
-function clickerMaxEnergy(upgrades) {
-  return 100 + clickerUpgrades(upgrades).energy * 20;
+function clickerMaxEnergy(upgrades, skills = {}) {
+  return 100 + clickerUpgrades(upgrades).energy * 20 + (Number(skills.battery) || 0) * 20;
+}
+
+function clickerSkills(raw) {
+  let parsed = {};
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw || {};
+  } catch {}
+  const out = {};
+  for (const key of CLICKER_SKILL_KEYS) {
+    out[key] = Math.floor(clampNumber(parsed[key], 0, CLICKER_SKILLS[key], 0));
+  }
+  return out;
+}
+
+function clickerSkillPoints(rebirths) {
+  const n = Math.max(0, Math.floor(rebirths));
+  return n + Math.floor(n / 5) + Math.floor(n / 10);
+}
+
+function clickerSkillSpent(skills) {
+  return CLICKER_SKILL_KEYS.reduce((sum, key) => sum + (skills[key] || 0), 0);
 }
 
 function serializeClicker(row) {
   const r = row || {};
   const upgrades = clickerUpgrades(r.upgrades);
+  const skills = clickerSkills(r.skills);
   return {
     total: clampNumber(r.total, 0, Number.MAX_SAFE_INTEGER, 0),
     claimed: Math.floor(clampNumber(r.claimed, 0, Number.MAX_SAFE_INTEGER, 0)),
     balance: clampNumber(r.balance, 0, Number.MAX_SAFE_INTEGER, 0),
     run: clampNumber(r.run, 0, Number.MAX_SAFE_INTEGER, 0),
     rebirths: Math.floor(clampNumber(r.rebirths, 0, 1000000, 0)),
-    energy: clampNumber(r.energy, 0, clickerMaxEnergy(upgrades), 100),
+    energy: clampNumber(r.energy, 0, clickerMaxEnergy(upgrades, skills), 100),
     playtime: clampNumber(r.playtime, 0, Number.MAX_SAFE_INTEGER, 0),
     upgrades,
+    skills,
     rev: Math.floor(clampNumber(r.rev, 0, Number.MAX_SAFE_INTEGER, 0)),
     updatedAt: Number(r.updated_at) || 0,
     cost: CLICKER_KEY_COST,
@@ -416,12 +451,13 @@ async function readClicker(userId) {
 }
 
 async function writeClicker(userId, state) {
-  (await run(`INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, playtime, upgrades, rev, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (await run(`INSERT INTO clicker_progress (user_id, total, claimed, balance, run, rebirths, energy, playtime, upgrades, skills, rev, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        total = excluded.total, claimed = excluded.claimed, balance = excluded.balance,
        run = excluded.run, rebirths = excluded.rebirths, energy = excluded.energy,
-       playtime = excluded.playtime, upgrades = excluded.upgrades, rev = excluded.rev, updated_at = excluded.updated_at`, userId,
+       playtime = excluded.playtime, upgrades = excluded.upgrades, skills = excluded.skills,
+       rev = excluded.rev, updated_at = excluded.updated_at`, userId,
     Math.floor(state.total),
     Math.floor(state.claimed),
     state.balance,
@@ -430,6 +466,7 @@ async function writeClicker(userId, state) {
     state.energy,
     state.playtime,
     JSON.stringify(state.upgrades),
+    JSON.stringify(state.skills || {}),
     state.rev,
     now()));
   return readClicker(userId);
@@ -626,16 +663,34 @@ async function handleApi(req, res, url) {
       return json(res, 409, { error: "Прогресс обновлён", state: current });
     }
     const upgrades = clickerUpgrades(body.upgrades);
-    const maxEnergyValue = clickerMaxEnergy(upgrades);
+    const incomingSkills = body.skills === undefined ? current.skills : clickerSkills(body.skills);
+    const skills = {};
+    for (const key of CLICKER_SKILL_KEYS) {
+      skills[key] = Math.max(current.skills[key], incomingSkills[key]);
+    }
+    const rebirths = Math.max(
+      current.rebirths,
+      Math.floor(clampNumber(body.rebirths, 0, 1000000, current.rebirths))
+    );
+    if (clickerSkillSpent(skills) > clickerSkillPoints(rebirths)) {
+      return json(res, 400, { error: "Недостаточно очков навыков" });
+    }
+    for (const [key, req] of Object.entries(CLICKER_SKILL_REQS)) {
+      if (skills[key] > 0 && skills[req.id] < req.level) {
+        return json(res, 400, { error: "Сначала изучите предыдущий навык" });
+      }
+    }
+    const maxEnergyValue = clickerMaxEnergy(upgrades, skills);
     const state = {
       total: Math.max(current.total, Math.floor(clampNumber(body.total, 0, Number.MAX_SAFE_INTEGER, current.total))),
       claimed: current.claimed,
       balance: clampNumber(body.balance, 0, Number.MAX_SAFE_INTEGER, 0),
       run: clampNumber(body.run, 0, Number.MAX_SAFE_INTEGER, 0),
-      rebirths: Math.floor(clampNumber(body.rebirths, 0, 1000000, current.rebirths)),
+      rebirths,
       energy: clampNumber(body.energy, 0, maxEnergyValue, maxEnergyValue),
       playtime: Math.max(current.playtime, clampNumber(body.playtime, 0, Number.MAX_SAFE_INTEGER, current.playtime)),
       upgrades,
+      skills,
       rev: current.rev + 1,
     };
     const saved = await writeClicker(user.id, state);
@@ -776,7 +831,8 @@ async function handleApi(req, res, url) {
       rebirths: 0,
       energy: 100,
       playtime: 0,
-      upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
+      upgrades: clickerUpgrades(null),
+      skills: clickerSkills(null),
       rev: current.rev + 1,
     });
     await log(admin, "admin:clicker", `Сброшен прогресс кликера: ${target.username}`, clientIp(req));

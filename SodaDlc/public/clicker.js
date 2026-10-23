@@ -29,9 +29,55 @@
     },
   ];
 
+  const SKILLS = [
+    {
+      id: "might", branch: "power", name: "Титаническая сила", desc: "+8% к силе клика за уровень", max: 12,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 9h7l-9 11 2-9H4z"/></svg>',
+    },
+    {
+      id: "crit", branch: "power", name: "Острые когти", desc: "+1% к шансу крита за уровень", max: 15,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+    },
+    {
+      id: "rage", branch: "power", name: "Ярость", desc: "+0.5× к урону крита за уровень", max: 15, req: { id: "might", level: 5 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1.5 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 .5 2 2 2.5 2 4a2.5 2.5 0 0 0 3-2.5C14 6 12 4 12 2z"/></svg>',
+    },
+    {
+      id: "battery", branch: "energy", name: "Ёмкая батарея", desc: "+20 к максимуму энергии за уровень", max: 12,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="15" height="10" rx="2"/><path d="M21 10v4M8 10v4M12 10v4"/></svg>',
+    },
+    {
+      id: "flow", branch: "energy", name: "Быстрый поток", desc: "+1 энергии в секунду за уровень", max: 15,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3 4 6 7 6 10a6 6 0 0 1-12 0c0-3 3-6 6-10z"/></svg>',
+    },
+    {
+      id: "offline", branch: "energy", name: "Ночная смена", desc: "+1 ч к офлайн-фарму за уровень", max: 12, req: { id: "battery", level: 5 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><path d="M17 4v3M15.5 5.5h3"/></svg>',
+    },
+    {
+      id: "auto", branch: "auto", name: "Автопилот", desc: "+12% к скорости автоклика за уровень", max: 15,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M4 4l3 3M20 4l-3 3"/></svg>',
+    },
+    {
+      id: "fortune", branch: "auto", name: "Золотая жила", desc: "+5% ко всем кликам за уровень", max: 12, req: { id: "auto", level: 5 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v10M9.5 9.5h5M9.5 14.5h5"/></svg>',
+    },
+    {
+      id: "rebirth", branch: "auto", name: "Колесо сансары", desc: "−3% к требованию перерождения за уровень", max: 15, req: { id: "fortune", level: 5 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 16v4h4M21 8V4h-4"/></svg>',
+    },
+  ];
+  const SKILL_BRANCHES = [
+    { id: "power", name: "Сила", tag: "Ветка I", desc: "Больше урона с каждого клика.", skills: ["might", "crit", "rage"] },
+    { id: "energy", name: "Энергия", tag: "Ветка II", desc: "Дольше кликай без остановки.", skills: ["battery", "flow", "offline"] },
+    { id: "auto", name: "Автоматизация", tag: "Ветка III", desc: "Пусть клики идут сами.", skills: ["auto", "fortune", "rebirth"] },
+  ];
+  const SKILL_DEFAULTS = Object.fromEntries(SKILLS.map((skill) => [skill.id, 0]));
+
   const defaults = {
     balance: 0, total: 0, run: 0, rebirths: 0, energy: 100, playtime: 0,
     upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
+    skills: SKILL_DEFAULTS,
   };
 
   const num = (value, fallback = 0) => {
@@ -42,6 +88,7 @@
   const state = {
     ...defaults,
     upgrades: { ...defaults.upgrades },
+    skills: { ...SKILL_DEFAULTS },
     rev: 0,
     claimed: 0,
     keySpent: 0,
@@ -57,26 +104,66 @@
   let last = Date.now();
   let lastSave = Date.now();
 
+  function skillLevel(id) {
+    return state.skills[id] || 0;
+  }
+  function skillPointsEarned() {
+    return state.rebirths + Math.floor(state.rebirths / 5) + Math.floor(state.rebirths / 10);
+  }
+  function skillPointsSpent() {
+    return SKILLS.reduce((sum, skill) => sum + skillLevel(skill.id), 0);
+  }
+  function availableSkillPoints() {
+    return Math.max(0, skillPointsEarned() - skillPointsSpent());
+  }
+  function skillRequirementMet(skill) {
+    return !skill.req || skillLevel(skill.req.id) >= skill.req.level;
+  }
+  function skillEffect(skill, level) {
+    switch (skill.id) {
+      case "might": return "+" + level * 8 + "% к силе клика";
+      case "crit": return "+" + level + "% к шансу крита";
+      case "rage": return "×" + round2(10 + level * 0.5) + " урон крита";
+      case "battery": return "+" + level * 20 + " к максимуму энергии";
+      case "flow": return "+" + level + " энергии/сек";
+      case "offline": return "+" + level + " ч к офлайн-фарму";
+      case "auto": return "+" + level * 12 + "% к автоклику";
+      case "fortune": return "+" + level * 5 + "% ко всем кликам";
+      case "rebirth": return "−" + level * 3 + "% к требованию перерождения";
+      default: return "";
+    }
+  }
+  function offlineCap() {
+    return OFFLINE_CAP + skillLevel("offline") * 3600;
+  }
+  function fortuneMult() {
+    return 1 + skillLevel("fortune") * 0.05;
+  }
+
   function mult() {
     return 1 + state.rebirths * 0.25;
   }
   function maxEnergy() {
-    return 100 + state.upgrades.energy * 20;
+    return 100 + state.upgrades.energy * 20 + skillLevel("battery") * 20;
   }
   function regen() {
-    return 3 + state.upgrades.regen;
+    return 3 + state.upgrades.regen + skillLevel("flow");
   }
   function clickPower() {
-    return (1 + state.upgrades.power) * mult();
+    return (1 + state.upgrades.power) * mult() * (1 + skillLevel("might") * 0.08);
   }
   function autoCps() {
-    return state.upgrades.auto * clickPower() * 0.5;
+    return state.upgrades.auto * clickPower() * 0.5 * (1 + skillLevel("auto") * 0.12);
   }
   function critChance() {
-    return Math.min(0.5, state.upgrades.crit * 0.04);
+    return Math.min(0.75, state.upgrades.crit * 0.04 + skillLevel("crit") * 0.01);
+  }
+  function critMultiplier() {
+    return 10 + skillLevel("rage") * 0.5;
   }
   function rebirthNeed() {
-    return Math.floor(5000 * Math.pow(6, state.rebirths));
+    const base = 5000 * Math.pow(6, state.rebirths);
+    return Math.max(1, Math.floor(base * Math.max(0.25, 1 - skillLevel("rebirth") * 0.03)));
   }
   function upCost(u) {
     return Math.floor(u.base * Math.pow(u.growth, state.upgrades[u.id]));
@@ -99,10 +186,12 @@
 
   function addGain(value) {
     const cap = Number.MAX_SAFE_INTEGER;
+    value *= fortuneMult();
     state.balance = Math.min(cap, state.balance + value);
     state.total = Math.min(cap, state.total + value);
     state.run = Math.min(cap, state.run + value);
     localVersion += 1;
+    return value;
   }
 
   function applyServer(data) {
@@ -114,6 +203,10 @@
     state.upgrades = { ...defaults.upgrades, ...(data.upgrades || {}) };
     for (const key of Object.keys(defaults.upgrades)) {
       state.upgrades[key] = Math.max(0, Math.floor(num(state.upgrades[key])));
+    }
+    state.skills = { ...SKILL_DEFAULTS, ...(data.skills || {}) };
+    for (const skill of SKILLS) {
+      state.skills[skill.id] = Math.min(skill.max, Math.max(0, Math.floor(num(state.skills[skill.id]))));
     }
     state.rev = Math.floor(num(data.rev));
     state.energy = Math.min(maxEnergy(), num(data.energy, maxEnergy()));
@@ -132,6 +225,7 @@
       energy: state.energy,
       playtime: state.playtime,
       upgrades: state.upgrades,
+      skills: state.skills,
     };
   }
 
@@ -157,13 +251,18 @@
     const sentVersion = localVersion;
     try {
       const data = await SODA.api("/api/clicker/save", { method: "POST", body: payload() });
-      if (localVersion === sentVersion) applyServer(data);
-      else mergeServer(data);
+      if (localVersion === sentVersion) {
+        applyServer(data);
+        renderSkills();
+      } else {
+        mergeServer(data);
+      }
       render();
     } catch (err) {
       if (err.status === 409 && err.data && err.data.state) {
         if (localVersion === sentVersion) {
           applyServer(err.data.state);
+          renderSkills();
         } else {
           mergeServer(err.data.state);
           queued = true;
@@ -185,6 +284,7 @@
   const sticker = $("ckSticker");
   const floats = $("ckFloats");
   const upgradesEl = $("ckUpgrades");
+  const skillsEl = $("ckSkills");
 
   function spawnFloat(event, value, crit) {
     const rect = stage.getBoundingClientRect();
@@ -226,6 +326,50 @@
     });
   }
 
+  function renderSkills() {
+    if (!skillsEl) return;
+    const points = availableSkillPoints();
+    skillsEl.innerHTML = SKILL_BRANCHES.map((branch) => {
+      const nodes = branch.skills.map((id) => {
+        const skill = SKILLS.find((item) => item.id === id);
+        const level = skillLevel(skill.id);
+        const maxed = level >= skill.max;
+        const locked = !skillRequirementMet(skill);
+        const canBuy = !maxed && !locked && points > 0;
+        const current = level > 0 ? skillEffect(skill, level) : "Нет бонуса";
+        const next = maxed ? "" : skillEffect(skill, level + 1);
+        const reqSkill = skill.req ? SKILLS.find((item) => item.id === skill.req.id) : null;
+        const buttonText = maxed
+          ? "Максимум"
+          : locked
+            ? "Заблокировано"
+            : points < 1
+              ? "Нужно очко"
+              : "Изучить · 1 очко";
+        return `<article class="ck-skill${locked ? " is-locked" : ""}${maxed ? " is-maxed" : ""}">
+          <div class="ck-skill-head">
+            <span class="ck-skill-icon">${skill.icon}</span>
+            <span class="ck-skill-lvl">${level} / ${skill.max}</span>
+          </div>
+          <h3>${skill.name}</h3>
+          <p>${skill.desc}</p>
+          <div class="ck-skill-effect">Сейчас: ${current}</div>
+          ${!maxed && !locked ? `<div class="ck-skill-next">Далее: ${next}</div>` : ""}
+          ${locked ? `<div class="ck-skill-req">Нужно: ${reqSkill.name} ур. ${skill.req.level}</div>` : ""}
+          <button class="btn ghost sm" type="button" data-skill="${skill.id}" ${canBuy ? "" : "disabled"}>${buttonText}</button>
+        </article>`;
+      }).join("");
+      return `<div class="ck-skill-branch ${branch.id}">
+        <div class="ck-skill-branch-head">
+          <span class="ck-skill-tag">${branch.tag}</span>
+          <h3>${branch.name}</h3>
+          <p>${branch.desc}</p>
+        </div>
+        <div class="ck-skill-list">${nodes}</div>
+      </div>`;
+    }).join("");
+  }
+
   function render() {
     const me = maxEnergy();
     if (state.energy > me) state.energy = me;
@@ -256,7 +400,7 @@
     $("ckRebirths").textContent = state.rebirths;
     $("ckRebirthMult").textContent = "×" + round2(mult());
     $("ckRebirthText").textContent =
-      "Сбросит баланс, энергию и прокачку, но даст +25% к силе навсегда. " +
+      "Сбросит баланс, энергию и прокачку, но даст +25% к силе и очки навыков навсегда. " +
       (canRebirth
         ? "Условие выполнено — можно перерождаться."
         : "За этот забег нужно " + fmt(need) + " кликов, сейчас " + fmt(state.run) + ".");
@@ -264,13 +408,15 @@
     rbBtn.disabled = !canRebirth;
     rbBtn.textContent = canRebirth ? "Переродиться" : "Нужно " + fmt(need);
 
+    $("ckSkillPoints").textContent = full(availableSkillPoints());
+    $("ckSkillTotal").textContent = "из " + full(skillPointsEarned());
     syncUpgradeButtons();
   }
 
   function tick() {
     const t = Date.now();
     const raw = Math.max(0, (t - last) / 1000);
-    const dt = Math.min(raw, OFFLINE_CAP);
+    const dt = Math.min(raw, offlineCap());
     last = t;
     if (!ready) return;
     let changed = false;
@@ -304,8 +450,7 @@
     }
     state.energy -= 1;
     const crit = Math.random() < critChance();
-    const gain = clickPower() * (crit ? 10 : 1);
-    addGain(gain);
+    const gain = addGain(clickPower() * (crit ? critMultiplier() : 1));
     sticker.classList.remove("hit");
     void sticker.offsetWidth;
     sticker.classList.add("hit");
@@ -336,6 +481,30 @@
     persist();
   });
 
+  if (skillsEl) skillsEl.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-skill]");
+    if (!btn || !ready) return;
+    const skill = SKILLS.find((item) => item.id === btn.dataset.skill);
+    if (!skill) return;
+    const level = skillLevel(skill.id);
+    if (level >= skill.max) return;
+    if (!skillRequirementMet(skill)) {
+      SODA.toast("Сначала изучи предыдущий навык", "err");
+      return;
+    }
+    if (availableSkillPoints() < 1) {
+      SODA.toast("Нет очков навыков — переродись", "err");
+      return;
+    }
+    state.skills[skill.id] = level + 1;
+    if (skill.id === "battery") state.energy = Math.min(maxEnergy(), state.energy + 20);
+    localVersion += 1;
+    renderSkills();
+    render();
+    persist();
+    SODA.toast(skill.name + " · ур. " + (level + 1));
+  });
+
   $("ckRebirthBtn").addEventListener("click", () => {
     if (!ready) return;
     const need = rebirthNeed();
@@ -347,9 +516,10 @@
     state.energy = maxEnergy();
     localVersion += 1;
     renderUpgrades();
+    renderSkills();
     render();
     persist();
-    SODA.toast("Перерождение! Множитель ×" + round2(mult()));
+    SODA.toast("Перерождение! Множитель ×" + round2(mult()) + " · очков навыков: " + availableSkillPoints());
   });
 
   $("ckKeyBtn").addEventListener("click", async () => {
@@ -468,6 +638,11 @@
       for (const key of Object.keys(defaults.upgrades)) {
         state.upgrades[key] = Math.max(state.upgrades[key], Math.floor(num(cached.upgrades && cached.upgrades[key])));
       }
+      if (cached.skills) {
+        for (const skill of SKILLS) {
+          state.skills[skill.id] = Math.min(skill.max, Math.max(state.skills[skill.id], Math.floor(num(cached.skills[skill.id]))));
+        }
+      }
       migrated = true;
     }
     try {
@@ -475,10 +650,9 @@
     } catch {}
 
     let offlineGain = 0;
-    const idle = Math.min(Math.max((Date.now() - state.updatedAt) / 1000, 0), OFFLINE_CAP);
+    const idle = Math.min(Math.max((Date.now() - state.updatedAt) / 1000, 0), offlineCap());
     if (idle >= 30 && autoCps() > 0) {
-      offlineGain = autoCps() * idle;
-      addGain(offlineGain);
+      offlineGain = addGain(autoCps() * idle);
       state.energy = Math.min(maxEnergy(), state.energy + regen() * idle);
     }
 
@@ -486,6 +660,7 @@
     last = Date.now();
     lastSave = Date.now();
     renderUpgrades();
+    renderSkills();
     render();
     if (offlineGain > 0) SODA.toast("Офлайн-фарм: +" + fmt(offlineGain) + " кликов");
     if (migrated || offlineGain > 0) persist();
