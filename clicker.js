@@ -163,7 +163,7 @@
     return 100 + state.upgrades.energy * 20 + skillLevel("battery") * 20;
   }
   function regen() {
-    return 3 + state.upgrades.regen + skillLevel("flow");
+    return 3 + Math.round(maxEnergy() * 0.05) + state.upgrades.regen + skillLevel("flow");
   }
   function clickPower() {
     return (1 + state.upgrades.power) * mult() * (1 + skillLevel("might") * 0.08);
@@ -404,7 +404,10 @@
     $("ckEnergyText").textContent = energy + " / " + me;
     $("ckEnergyFill").style.width = Math.max(0, Math.min(100, (state.energy / me) * 100)) + "%";
     $("ckEnergyFill").classList.toggle("low", state.energy < me * 0.2);
-    $("ckRegenText").textContent = "+" + regen() + " в секунду";
+    const regenRate = regen();
+    const missingEnergy = Math.max(0, me - state.energy);
+    $("ckRegenText").textContent = "+" + regenRate + " в секунду" +
+      (missingEnergy > 0.5 ? " · полный за " + Math.ceil(missingEnergy / regenRate) + " с" : " · полный");
 
     const rem = Math.max(0, state.total - state.keySpent);
     const pct = Math.min(100, (rem / KEY_COST) * 100);
@@ -725,7 +728,7 @@
     render();
     if (offlineGain > 0) SODA.toast("Офлайн-фарм: +" + fmt(offlineGain) + " кликов");
     if (migrated || offlineGain > 0) persist();
-    setInterval(tick, 200);
+    setInterval(tick, 100);
     SODA.me()
       .then((u) => {
         currentUser = (u && u.username) || "";
