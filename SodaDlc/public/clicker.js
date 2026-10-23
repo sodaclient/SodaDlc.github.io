@@ -53,6 +53,7 @@
   let queued = false;
   let claiming = false;
   let migrated = false;
+  let localVersion = 0;
   let last = Date.now();
   let lastSave = Date.now();
 
@@ -101,6 +102,7 @@
     state.balance = Math.min(cap, state.balance + value);
     state.total = Math.min(cap, state.total + value);
     state.run = Math.min(cap, state.run + value);
+    localVersion += 1;
   }
 
   function applyServer(data) {
@@ -133,6 +135,18 @@
     };
   }
 
+  function mergeServer(data) {
+    const serverRev = Math.floor(num(data.rev));
+    state.total = Math.max(state.total, num(data.total));
+    state.playtime = Math.max(state.playtime, num(data.playtime));
+    if (serverRev >= state.rev) {
+      state.rev = serverRev;
+      state.claimed = Math.floor(num(data.claimed));
+      state.updatedAt = Math.max(state.updatedAt, num(data.updatedAt));
+    }
+    state.keySpent = state.claimed * KEY_COST;
+  }
+
   async function persist() {
     if (!ready) return;
     if (saving) {
@@ -140,13 +154,20 @@
       return;
     }
     saving = true;
+    const sentVersion = localVersion;
     try {
       const data = await SODA.api("/api/clicker/save", { method: "POST", body: payload() });
-      applyServer(data);
+      if (localVersion === sentVersion) applyServer(data);
+      else mergeServer(data);
       render();
     } catch (err) {
       if (err.status === 409 && err.data && err.data.state) {
-        applyServer(err.data.state);
+        if (localVersion === sentVersion) {
+          applyServer(err.data.state);
+        } else {
+          mergeServer(err.data.state);
+          queued = true;
+        }
         render();
       } else if (err.status === 401) {
         location.href = "/login?next=/clicker";
@@ -252,10 +273,19 @@
     const dt = Math.min(raw, OFFLINE_CAP);
     last = t;
     if (!ready) return;
-    if (document.visibilityState === "visible") state.playtime += Math.min(raw, 30);
-    state.energy = Math.min(maxEnergy(), state.energy + regen() * dt);
+    let changed = false;
+    if (document.visibilityState === "visible" && raw > 0) {
+      state.playtime += Math.min(raw, 30);
+      changed = true;
+    }
+    const nextEnergy = Math.min(maxEnergy(), state.energy + regen() * dt);
+    if (nextEnergy !== state.energy) {
+      state.energy = nextEnergy;
+      changed = true;
+    }
     const gained = autoCps() * dt;
     if (gained > 0) addGain(gained);
+    if (changed) localVersion += 1;
     render();
     if (t - lastSave > 3000) {
       lastSave = t;
@@ -300,6 +330,7 @@
     state.balance -= cost;
     state.upgrades[u.id] += 1;
     if (u.id === "energy") state.energy = Math.min(maxEnergy(), state.energy + 20);
+    localVersion += 1;
     renderUpgrades();
     render();
     persist();
@@ -314,6 +345,7 @@
     state.run = 0;
     state.upgrades = { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 };
     state.energy = maxEnergy();
+    localVersion += 1;
     renderUpgrades();
     render();
     persist();
@@ -329,6 +361,7 @@
         method: "POST",
         body: { total: state.total },
       });
+      localVersion += 1;
       applyServer(data.state);
       $("ckKeyValue").textContent = data.key;
       $("ckKeyResult").classList.remove("hidden");
