@@ -86,10 +86,67 @@
   const SKILL_HUB = { x: 50, y: 50 };
   const SKILL_DEFAULTS = Object.fromEntries(SKILLS.map((skill) => [skill.id, 0]));
 
+  const CLICK_TREE = [
+    {
+      id: "impact", branch: "power", name: "Тяжёлый удар", desc: "+10% к силе клика за уровень", max: 10, base: 5000, growth: 2.4,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 9h7l-9 11 2-9H4z"/></svg>',
+    },
+    {
+      id: "precision", branch: "power", name: "Точный удар", desc: "+1% к шансу крита за уровень", max: 10, base: 25000, growth: 2.4, req: { id: "impact", level: 3 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+    },
+    {
+      id: "execution", branch: "power", name: "Казнь", desc: "+0.5× к урону крита за уровень", max: 10, base: 100000, growth: 2.4, req: { id: "precision", level: 3 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M7 4h13v13"/><path d="m8 16 4 4"/></svg>',
+    },
+    {
+      id: "reservoir", branch: "energy", name: "Резервуар", desc: "+15 к максимуму энергии за уровень", max: 10, base: 5000, growth: 2.4,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="16" height="12" rx="2"/><path d="M21 10v4M7 10v4M11 10v4M15 10v4"/></svg>',
+    },
+    {
+      id: "circulation", branch: "energy", name: "Циркуляция", desc: "+1 энергии/сек за уровень", max: 10, base: 25000, growth: 2.4, req: { id: "reservoir", level: 3 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-7a4 4 0 1 0 0 8h2a4 4 0 1 1 0 8H4"/><path d="m17 4 3 3-3 3"/></svg>',
+    },
+    {
+      id: "thrift", branch: "energy", name: "Экономия", desc: "2% шанс клика без затрат энергии за уровень", max: 10, base: 100000, growth: 2.4, req: { id: "circulation", level: 3 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/><path d="M4 4l16 16"/></svg>',
+    },
+    {
+      id: "metronome", branch: "auto", name: "Метроном", desc: "+10% к автоклику за уровень", max: 10, base: 10000, growth: 2.4,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 21 2-16h4l2 16z"/><path d="M12 17 16 7"/><path d="M6 21h12"/></svg>',
+    },
+    {
+      id: "resonance", branch: "auto", name: "Резонанс", desc: "+4% ко всем кликам за уровень", max: 10, base: 50000, growth: 2.4, req: { id: "metronome", level: 3 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
+    },
+    {
+      id: "nightshift", branch: "auto", name: "Ночной марафон", desc: "+0.5 ч к офлайн-фарму за уровень", max: 10, base: 150000, growth: 2.4, req: { id: "resonance", level: 3 },
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><path d="M17 4v3M15.5 5.5h3"/></svg>',
+    },
+    {
+      id: "multiclick", branch: "legacy", name: "Мультиудар", desc: "5% шанс двойного клика за уровень", max: 10, base: 250000, growth: 2.6,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h8v8H4z"/><path d="M12 12h8v8h-8z"/><path d="M12 4h8v8M4 12v8h8"/></svg>',
+    },
+  ];
+  const CLICK_TREE_BRANCHES = [
+    { id: "force", name: "Сила", tag: "Ветка I", desc: "Усиливай каждый удар.", theme: "power", skills: ["impact", "precision", "execution"] },
+    { id: "stamina", name: "Выносливость", tag: "Ветка II", desc: "Больше энергии и регенерации.", theme: "energy", skills: ["reservoir", "circulation", "thrift"] },
+    { id: "rhythm", name: "Ритм", tag: "Ветка III", desc: "Автоклик, резонанс и офлайн.", theme: "auto", skills: ["metronome", "resonance", "nightshift"] },
+    { id: "synergy", name: "Синергия", tag: "Ветка IV", desc: "Шанс ударить дважды.", theme: "legacy", skills: ["multiclick"] },
+  ];
+  const CLICK_TREE_POS = {
+    impact: SKILL_POS.might, precision: SKILL_POS.crit, execution: SKILL_POS.rage,
+    reservoir: SKILL_POS.battery, circulation: SKILL_POS.flow, thrift: SKILL_POS.offline,
+    metronome: SKILL_POS.auto, resonance: SKILL_POS.fortune, nightshift: SKILL_POS.rebirth,
+    multiclick: SKILL_POS.legacy,
+  };
+  const CLICK_TREE_DEFAULTS = Object.fromEntries(CLICK_TREE.map((node) => [node.id, 0]));
+
   const defaults = {
     balance: 0, total: 0, run: 0, rebirths: 0, energy: 100, playtime: 0,
     upgrades: { power: 0, energy: 0, regen: 0, auto: 0, crit: 0 },
     skills: SKILL_DEFAULTS,
+    clickTree: CLICK_TREE_DEFAULTS,
   };
 
   const num = (value, fallback = 0) => {
@@ -101,6 +158,7 @@
     ...defaults,
     upgrades: { ...defaults.upgrades },
     skills: { ...SKILL_DEFAULTS },
+    clickTree: { ...CLICK_TREE_DEFAULTS },
     rev: 0,
     claimed: 0,
     keySpent: 0,
@@ -118,6 +176,30 @@
 
   function skillLevel(id) {
     return state.skills[id] || 0;
+  }
+  function clickTreeLevel(id) {
+    return state.clickTree[id] || 0;
+  }
+  function clickTreeRequirementMet(node) {
+    return !node.req || clickTreeLevel(node.req.id) >= node.req.level;
+  }
+  function clickTreeCost(node) {
+    return Math.floor(node.base * Math.pow(node.growth, clickTreeLevel(node.id)));
+  }
+  function clickTreeEffect(node, level) {
+    switch (node.id) {
+      case "impact": return "+" + level * 10 + "% к силе клика";
+      case "precision": return "+" + level + "% к шансу крита";
+      case "execution": return "+" + round2(level * 0.5) + "× к урону крита";
+      case "reservoir": return "+" + level * 15 + " к максимуму энергии";
+      case "circulation": return "+" + level + " энергии/сек";
+      case "thrift": return level * 2 + "% шанс клика без энергии";
+      case "metronome": return "+" + level * 10 + "% к автоклику";
+      case "resonance": return "+" + level * 4 + "% ко всем кликам";
+      case "nightshift": return "+" + round2(level * 0.5) + " ч к офлайн-фарму";
+      case "multiclick": return level * 5 + "% шанс двойного клика";
+      default: return "";
+    }
   }
   function skillPointsEarned() {
     return state.rebirths + Math.floor(state.rebirths / 5) + Math.floor(state.rebirths / 10);
@@ -147,10 +229,10 @@
     }
   }
   function offlineCap() {
-    return OFFLINE_CAP + skillLevel("offline") * 3600;
+    return OFFLINE_CAP + skillLevel("offline") * 3600 + clickTreeLevel("nightshift") * 1800;
   }
   function fortuneMult() {
-    return 1 + skillLevel("fortune") * 0.05;
+    return 1 + skillLevel("fortune") * 0.05 + clickTreeLevel("resonance") * 0.04;
   }
   function legacyKeep() {
     return Math.min(0.5, skillLevel("legacy") * 0.05);
@@ -160,22 +242,24 @@
     return 1 + state.rebirths * 0.25;
   }
   function maxEnergy() {
-    return 100 + state.upgrades.energy * 20 + skillLevel("battery") * 20;
+    return 100 + state.upgrades.energy * 20 + skillLevel("battery") * 20 + clickTreeLevel("reservoir") * 15;
   }
   function regen() {
-    return 3 + Math.round(maxEnergy() * 0.05) + state.upgrades.regen + skillLevel("flow");
+    return 3 + Math.round(maxEnergy() * 0.05) + state.upgrades.regen + skillLevel("flow") + clickTreeLevel("circulation");
   }
   function clickPower() {
-    return (1 + state.upgrades.power) * mult() * (1 + skillLevel("might") * 0.08);
+    return (1 + state.upgrades.power) * mult() * (1 + skillLevel("might") * 0.08) *
+      (1 + clickTreeLevel("impact") * 0.10);
   }
   function autoCps() {
-    return state.upgrades.auto * clickPower() * 0.5 * (1 + skillLevel("auto") * 0.12);
+    return state.upgrades.auto * clickPower() * 0.5 * (1 + skillLevel("auto") * 0.12) *
+      (1 + clickTreeLevel("metronome") * 0.10);
   }
   function critChance() {
-    return Math.min(0.75, state.upgrades.crit * 0.04 + skillLevel("crit") * 0.01);
+    return Math.min(0.75, state.upgrades.crit * 0.04 + skillLevel("crit") * 0.01 + clickTreeLevel("precision") * 0.01);
   }
   function critMultiplier() {
-    return 10 + skillLevel("rage") * 0.5;
+    return 10 + skillLevel("rage") * 0.5 + clickTreeLevel("execution") * 0.5;
   }
   function rebirthNeed() {
     const base = 5000 * Math.pow(6, state.rebirths);
@@ -224,6 +308,10 @@
     for (const skill of SKILLS) {
       state.skills[skill.id] = Math.min(skill.max, Math.max(0, Math.floor(num(state.skills[skill.id]))));
     }
+    state.clickTree = { ...CLICK_TREE_DEFAULTS, ...(data.clickTree || {}) };
+    for (const node of CLICK_TREE) {
+      state.clickTree[node.id] = Math.min(node.max, Math.max(0, Math.floor(num(state.clickTree[node.id]))));
+    }
     state.rev = Math.floor(num(data.rev));
     state.energy = Math.min(maxEnergy(), num(data.energy, maxEnergy()));
     state.playtime = Math.max(0, num(data.playtime));
@@ -242,6 +330,7 @@
       playtime: state.playtime,
       upgrades: state.upgrades,
       skills: state.skills,
+      clickTree: state.clickTree,
     };
   }
 
@@ -303,6 +392,9 @@
   const skillsEl = $("ckSkills");
   const skillModal = $("ckSkillModal");
   const openSkillsBtn = $("ckOpenSkills");
+  const clickModal = $("ckClickModal");
+  const openClickTreeBtn = $("ckOpenClickTree");
+  const clickNodesEl = $("ckClickNodes");
 
   function spawnFloat(event, value, crit) {
     const rect = stage.getBoundingClientRect();
@@ -391,6 +483,54 @@
       </button>`;
     }).join("");
   }
+  function renderClickTree() {
+    const nodesEl = $("ckClickNodes");
+    if (!nodesEl) return;
+    const linesEl = $("ckClickLines");
+    const links = [];
+    for (const branch of CLICK_TREE_BRANCHES) {
+      let prev = "hub";
+      for (const id of branch.skills) {
+        links.push([prev, id, branch.theme]);
+        prev = id;
+      }
+    }
+    if (linesEl) {
+      linesEl.innerHTML = links.map(([from, to, theme]) => {
+        const a = from === "hub" ? SKILL_HUB : CLICK_TREE_POS[from];
+        const b = CLICK_TREE_POS[to];
+        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="${theme}${clickTreeLevel(to) > 0 ? " is-active" : ""}" />`;
+      }).join("");
+    }
+    nodesEl.innerHTML = CLICK_TREE.map((node) => {
+      const level = clickTreeLevel(node.id);
+      const maxed = level >= node.max;
+      const locked = !clickTreeRequirementMet(node);
+      const cost = clickTreeCost(node);
+      const affordable = state.balance >= cost;
+      const current = level > 0 ? clickTreeEffect(node, level) : "Ещё не изучено";
+      const reqNode = node.req ? CLICK_TREE.find((item) => item.id === node.req.id) : null;
+      const status = maxed
+        ? "Максимум"
+        : locked
+          ? "Нужно: " + reqNode.name + " " + node.req.level
+          : affordable
+            ? "Купить · " + fmt(cost)
+            : "Не хватает · " + fmt(cost);
+      const stateClass = maxed ? " is-maxed" : locked ? " is-locked" : affordable ? " is-ready" : " is-poor";
+      const pos = CLICK_TREE_POS[node.id];
+      return `<button class="ck-web-node ${node.branch}${stateClass}" type="button" data-click-node="${node.id}" style="left:${pos.x}%;top:${pos.y}%" ${maxed || locked ? "disabled" : ""} title="${node.name}: ${node.desc}. Цена: ${fmt(cost)} кликов">
+        <span class="ck-web-node-head">
+          <span class="ck-web-node-icon">${node.icon}</span>
+          <span class="ck-web-node-lvl">${level} / ${node.max}</span>
+        </span>
+        <b>${node.name}</b>
+        <span class="ck-web-node-desc">${current}</span>
+        <span class="ck-web-node-status">${status}</span>
+      </button>`;
+    }).join("");
+  }
+
   function render() {
     const me = maxEnergy();
     if (state.energy > me) state.energy = me;
@@ -439,6 +579,8 @@
     $("ckSkillTotal").textContent = "из " + full(skillPointsEarned());
     $("ckSkillBtnPoints").textContent = full(skillPoints);
     $("ckOpenSkills").classList.toggle("has-points", skillPoints > 0);
+    const clickBalanceEl = $("ckClickBalance");
+    if (clickBalanceEl) clickBalanceEl.textContent = fmt(state.balance);
     syncUpgradeButtons();
   }
 
@@ -477,9 +619,11 @@
       setTimeout(() => stage.classList.remove("noenergy"), 260);
       return;
     }
-    state.energy -= 1;
+    if (Math.random() >= clickTreeLevel("thrift") * 0.02) state.energy -= 1;
     const crit = Math.random() < critChance();
-    const gain = addGain(clickPower() * (crit ? critMultiplier() : 1));
+    const baseGain = clickPower() * (crit ? critMultiplier() : 1);
+    let gain = addGain(baseGain);
+    if (Math.random() < clickTreeLevel("multiclick") * 0.05) gain += addGain(baseGain);
     sticker.classList.remove("hit");
     void sticker.offsetWidth;
     sticker.classList.add("hit");
@@ -502,6 +646,20 @@
     }
   }
 
+  function setClickTreeOpen(open) {
+    if (!clickModal) return;
+    clickModal.hidden = !open;
+    clickModal.classList.toggle("is-open", open);
+    document.body.classList.toggle("ck-modal-open", open);
+    if (open) {
+      renderClickTree();
+      const close = clickModal.querySelector(".ck-modal-close");
+      if (close) close.focus();
+    } else if (openClickTreeBtn) {
+      openClickTreeBtn.focus();
+    }
+  }
+
   sticker.addEventListener("click", clickSticker);
   if (openSkillsBtn && skillModal) {
     openSkillsBtn.addEventListener("click", () => setSkillsOpen(true));
@@ -512,6 +670,36 @@
       if (event.key === "Escape" && !skillModal.hidden) setSkillsOpen(false);
     });
   }
+  if (openClickTreeBtn && clickModal) {
+    openClickTreeBtn.addEventListener("click", () => setClickTreeOpen(true));
+    clickModal.addEventListener("click", (event) => {
+      if (event.target.closest("[data-close-click-tree]")) setClickTreeOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !clickModal.hidden) setClickTreeOpen(false);
+    });
+  }
+  if (clickNodesEl) clickNodesEl.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-click-node]");
+    if (!btn || !ready) return;
+    const node = CLICK_TREE.find((item) => item.id === btn.dataset.clickNode);
+    if (!node) return;
+    const level = clickTreeLevel(node.id);
+    if (level >= node.max || !clickTreeRequirementMet(node)) return;
+    const cost = clickTreeCost(node);
+    if (state.balance < cost) {
+      SODA.toast("Не хватает кликов: нужно " + fmt(cost), "err");
+      return;
+    }
+    state.balance -= cost;
+    state.clickTree[node.id] = level + 1;
+    if (node.id === "reservoir") state.energy = Math.min(maxEnergy(), state.energy + 15);
+    localVersion += 1;
+    renderClickTree();
+    render();
+    persist();
+    SODA.toast(node.name + " · ур. " + (level + 1));
+  });
 
   upgradesEl.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-buy]");
@@ -705,6 +893,11 @@
       if (cached.skills) {
         for (const skill of SKILLS) {
           state.skills[skill.id] = Math.min(skill.max, Math.max(state.skills[skill.id], Math.floor(num(cached.skills[skill.id]))));
+        }
+      }
+      if (cached.clickTree) {
+        for (const node of CLICK_TREE) {
+          state.clickTree[node.id] = Math.min(node.max, Math.max(state.clickTree[node.id], Math.floor(num(cached.clickTree[node.id]))));
         }
       }
       migrated = true;
